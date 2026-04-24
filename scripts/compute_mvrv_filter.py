@@ -70,7 +70,8 @@ def quantile(sorted_values: list[float], p: float) -> float:
 
 
 def load_stats(path: Path = DATA) -> MvrvStats:
-    rows = list(csv.DictReader(path.open()))
+    with path.open() as f:
+        rows = list(csv.DictReader(f))
     mv = [float(r["mvrv"]) for r in rows]
     s = sorted(mv)
     latest = rows[-1]
@@ -104,7 +105,8 @@ def classify(mvrv: float, st: MvrvStats) -> tuple[str, float, str]:
 
 
 def percentile_of(mvrv: float, path: Path = DATA) -> float:
-    rows = list(csv.DictReader(path.open()))
+    with path.open() as f:
+        rows = list(csv.DictReader(f))
     mv = [float(r["mvrv"]) for r in rows]
     below = sum(1 for x in mv if x < mvrv)
     return round(below / len(mv) * 100, 1)
@@ -153,7 +155,8 @@ def apply_to_analysis(path: Path = ANALYSIS) -> None:
     pct = percentile_of(st.latest_mvrv)
     plan, total = adjust_plan(mult)
 
-    rows = list(csv.reader(path.open()))
+    with path.open() as f:
+        rows = list(csv.reader(f))
     # drop any previous MVRV-* rows so this is idempotent
     rows = [r for r in rows if not (r and r[0] in MVRV_ROW_KEYS)]
 

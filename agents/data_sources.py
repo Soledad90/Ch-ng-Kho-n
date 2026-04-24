@@ -67,19 +67,22 @@ def fetch_cryptocompare(symbol: str = "BTC", tsym: str = "USD",
 
 def fetch_ohlc(tf: Timeframe = "1d") -> tuple[list[Candle], str]:
     """Try Kraken first, fall back to CryptoCompare. Returns (candles, source)."""
+    errors: list[str] = []
     try:
         c = fetch_kraken("XBTUSD", tf)
         if c:
             return c, "kraken"
+        errors.append("kraken returned empty data")
     except Exception as e:
-        last = f"kraken failed: {e}"
+        errors.append(f"kraken failed: {e}")
     try:
         c = fetch_cryptocompare("BTC", "USD", tf)
         if c:
             return c, "cryptocompare"
+        errors.append("cryptocompare returned empty data")
     except Exception as e:
-        last = f"cryptocompare failed: {e}"
-    raise RuntimeError(last)
+        errors.append(f"cryptocompare failed: {e}")
+    raise RuntimeError("; ".join(errors))
 
 
 def iso_date(ts: int) -> str:

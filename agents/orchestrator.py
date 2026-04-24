@@ -101,7 +101,7 @@ def plan(mvrv: MvrvSignal, ta: TaSignal) -> EntryPlan:
         if lo > hi:
             lo, hi = hi, lo
         entry = (lo, hi)
-        tranches = [((lo + hi) / 2, 0.4), (lo, 0.35), (max(fib618, support_below), 0.25)]
+        tranches = [((lo + hi) / 2, 0.4), (lo, 0.35), (min(fib618, support_below), 0.25)]
     elif action in ("BUY_DCA", "WAIT_DIP"):
         # 3-tranche DCA from neutral zone deep to fib/support
         tranches = [

@@ -74,7 +74,8 @@ def _direction(regime: str, z: float) -> str:
 
 
 def run(data_path: Path = DATA) -> MvrvSignal:
-    rows = list(csv.DictReader(data_path.open()))
+    with data_path.open() as f:
+        rows = list(csv.DictReader(f))
     mv_series = [float(r["mvrv"]) for r in rows]
     latest = rows[-1]
     mv = float(latest["mvrv"])
