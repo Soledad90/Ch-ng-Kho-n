@@ -62,6 +62,11 @@ def _signal_json(asset: str) -> dict:
 
 
 def _candles_json(asset: str, tf: str, limit: int) -> list[dict]:
+    # Guard against `?limit=0` / negative values: `c[-0:]` is `c[:]`, which
+    # would silently return ALL candles instead of an empty slice, and a
+    # negative limit (`c[-(-n):]` = `c[n:]`) would bypass the caller's cap.
+    if limit <= 0:
+        return []
     def produce():
         try:
             c, _src = fetch_ohlc(tf, asset)  # type: ignore[arg-type]
@@ -188,7 +193,11 @@ INDEX_HTML = r"""<!doctype html>
   }
 
   function renderCandles(rows, sig) {
+    // Don't try to render an error dict as OHLC rows.
+    if (!Array.isArray(rows)) rows = [];
     candleSeries.setData(rows);
+    // If the signal itself errored, skip zone overlays (they require trigger/futures fields).
+    if (sig && sig.error) { chart.timeScale().fitContent(); return; }
     // Draw OB/FVG zones as price lines + liq magnets
     // (clear previous lines before re-drawing)
     if (window._lines) window._lines.forEach(l => candleSeries.removePriceLine(l));
@@ -225,6 +234,14 @@ INDEX_HTML = r"""<!doctype html>
   }
 
   function renderSignal(s) {
+    if (s && s.error) {
+      document.getElementById('decision').innerHTML =
+        '<h2 style="color:#ff3d71">Signal unavailable</h2>' +
+        '<div>' + s.error + '</div>';
+      document.getElementById('confluence').querySelector('tbody').innerHTML = '';
+      document.getElementById('futures').innerHTML = '';
+      return;
+    }
     const dec = s.decision || '—';
     const score = s.confluence_score;
     document.getElementById('decision').innerHTML =
@@ -315,7 +332,12 @@ def _make_handler(root: Path):
                 elif url.path == "/api/candles":
                     asset = (qs.get("asset") or "BTC").upper()
                     tf = qs.get("tf", "15m")
-                    limit = min(int(qs.get("limit", "300")), 720)
+                    # Clamp to [0, 720]; _candles_json treats <=0 as empty.
+                    try:
+                        limit = int(qs.get("limit", "300"))
+                    except ValueError:
+                        limit = 300
+                    limit = max(0, min(limit, 720))
                     self._send_json(_candles_json(asset, tf, limit))
                 elif url.path == "/api/paper":
                     self._send_json(_paper_json(paper_state))
