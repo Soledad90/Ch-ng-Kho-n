@@ -1,4 +1,4 @@
-# BTC/USDT — 2026-04-24 07:30 UTC
+# BTC/USDT — 2026-04-24 07:45 UTC
 
 ## Decision: NO_TRADE  (Confluence 2/12)
 
@@ -15,11 +15,11 @@
 
 | Timeframe | Trend |
 |-----------|-------|
-| W1 (proxy) | range |
+| W1 (proxy) | down |
 | D1 | range |
 | H4 | up |
 
-**Kết luận Bias:** **RANGE** — D1=range, H4=up, W1=range — mixed
+**Kết luận Bias:** **RANGE** — D1=range, H4=up, W1=down — mixed
 **MVRV overlay:** Discount (value=1.44, direction=bullish)
 
 ## 2. POI & Liquidity
@@ -50,12 +50,12 @@
 
 | Field | Value |
 |---|---|
-| Funding rate (per 8h) | -0.12 bps → **neutral** |
+| Funding rate (per 8h) | -0.09 bps → **neutral** |
 | OI trend (12x1h) | flat (0.49%) |
 | Long/Short account ratio | 0.78 |
 | Liq magnet below (longs rekt) | $77,156.79 |
 | Liq magnet above (shorts rekt) | $78,375.01 |
-| Total liq volume (~100 events) | 10597.3 long / 6594.4 short |
+| Total liq volume (~100 events) | 10591.7 long / 6758.2 short |
 
 ## 5. Confluence Matrix (pass ≥ 7/12)
 
@@ -65,11 +65,11 @@
 | 2 | POI valid | FAIL | current_in=mid |
 | 3 | Liquidity Sweep | FAIL | sweep=none |
 | 4 | CHoCH LTF (M15) | FAIL | choch=none |
-| 5 | Fibonacci OTE | FAIL | price=77674.70 in [0.00, 0.00] |
+| 5 | Fibonacci OTE | FAIL | price=77735.70 in [0.00, 0.00] |
 | 6 | Volume Profile (POC proximity) | PASS | poc=77767.54999999999 |
-| 7 | Momentum (RSI + MACD hist) | FAIL | rsi=40.8, macd_hist=-0.020668033122618112 |
+| 7 | Momentum (RSI + MACD hist) | FAIL | rsi=43.7, macd_hist=1.5220894902159046 |
 | 8 | Kill Zone | PASS | London 07-10 UTC or NY 12-15 UTC |
-| 9 | Funding Rate (contrarian) | FAIL | rate=-0.12 bps/8h, regime=neutral |
+| 9 | Funding Rate (contrarian) | FAIL | rate=-0.09 bps/8h, regime=neutral |
 | 10 | Open Interest trend | FAIL | oi_trend=flat, change=0.49% |
 | 11 | OB/FVG zone (3-candle) | FAIL | no unmitigated OB/FVG found |
 | 12 | Liquidation magnet (target) | FAIL | no magnet |
@@ -92,10 +92,10 @@
 
 | TF | Close | EMA20 | EMA50 | EMA200 | RSI | MACD-hist | ATR | Trend |
 |---|---|---|---|---|---|---|---|---|
-| D1 | $77,674.70 | $74,462.19 | $72,780.95 | $82,560.36 | 63.1 | 368.64 | $2,433.43 | range |
-| H4 | $77,674.70 | $77,469.87 | $76,278.80 | $72,841.29 | 53.7 | -82.92 | $974.70 | up |
-| H1 | $77,674.70 | $77,972.30 | $77,800.45 | $76,251.11 | 44.3 | -44.91 | $424.83 | range |
-| M15 | $77,674.70 | $77,844.91 | $77,934.53 | $77,780.27 | 40.8 | -0.02 | $153.96 | range |
+| D1 | $77,735.70 | $74,468.00 | $72,783.34 | $82,560.96 | 63.4 | 372.53 | $2,433.43 | range |
+| H4 | $77,735.70 | $77,475.68 | $76,281.20 | $72,841.90 | 54.1 | -79.03 | $974.70 | up |
+| H1 | $77,735.70 | $77,978.11 | $77,802.84 | $76,251.72 | 45.3 | -41.01 | $427.13 | range |
+| M15 | $77,735.70 | $77,836.06 | $77,927.41 | $77,780.05 | 43.7 | 1.52 | $148.17 | range |
 
 ---
 

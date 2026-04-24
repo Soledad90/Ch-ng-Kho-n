@@ -258,15 +258,15 @@ def detect_fvg(highs, lows, closes, lookback: int = 120) -> list[dict]:
     start = max(2, n - lookback)
     fvgs: list[dict] = []
     for i in range(start, n):
-        # bullish
-        if highs[i - 2] < lows[i]:
+        # bullish: gap + middle candle must be up (close[i-1] > close[i-2])
+        if highs[i - 2] < lows[i] and closes[i - 1] > closes[i - 2]:
             lo, hi = highs[i - 2], lows[i]
             mid = (lo + hi) / 2
             mitigated = any(lows[j] <= mid for j in range(i + 1, n))
             fvgs.append({"idx": i, "kind": "bullish", "lo": lo, "hi": hi,
                          "mitigated": mitigated})
-        # bearish
-        if lows[i - 2] > highs[i]:
+        # bearish: gap + middle candle must be down
+        if lows[i - 2] > highs[i] and closes[i - 1] < closes[i - 2]:
             lo, hi = highs[i], lows[i - 2]
             mid = (lo + hi) / 2
             mitigated = any(highs[j] >= mid for j in range(i + 1, n))

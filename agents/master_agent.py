@@ -554,8 +554,21 @@ def run(risk_pct: float = 1.0) -> MasterSignal:
     h1 = _snap("1h", c_h1)
     m15 = _snap("15m", c_m15)
 
-    # W1 proxy: slope of D1 EMA200 (we don't pull weekly)
-    w1_trend = d1.trend  # approximation — D1 trend is a reasonable W1 proxy
+    # W1 proxy: slope of D1 EMA200 over the last 20 bars (independent of D1
+    # spot trend — avoids double-counting D1 in the bias formula).
+    closes_d1 = [c.close for c in c_d1]
+    ema200_series = ind.ema(closes_d1, 200)
+    tail = [v for v in ema200_series[-20:] if v is not None]
+    if len(tail) >= 2 and tail[0] and tail[-1]:
+        slope_pct = (tail[-1] - tail[0]) / tail[0] * 100
+        if slope_pct > 0.5:
+            w1_trend = "up"
+        elif slope_pct < -0.5:
+            w1_trend = "down"
+        else:
+            w1_trend = "range"
+    else:
+        w1_trend = "range"
 
     # Layer 1: Bias
     bias, bias_reason = _bias_from_snaps(d1, h4, w1_trend)
