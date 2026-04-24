@@ -197,7 +197,12 @@ def tick(
         # dollar P&L stable when multiple positions close in the same
         # tick — each position's result is based on the equity it was
         # actually sized against.
-        anchor = pos.equity_at_entry if pos.equity_at_entry is not None else state["equity"]
+        # Fallback goes to migration_equity (the pre-loop snapshot), NOT
+        # state["equity"]. dict.setdefault above will leave an explicit
+        # null in state.json untouched -> pos.equity_at_entry stays None
+        # -> this fallback fires. Using the mutating state["equity"]
+        # here would reintroduce the same order-dependent drift.
+        anchor = pos.equity_at_entry if pos.equity_at_entry is not None else migration_equity
         equity_delta = anchor * (pos.size_pct / 100.0) * r_mult
         state["equity"] += equity_delta
         tr = ClosedTrade(

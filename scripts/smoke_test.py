@@ -245,6 +245,44 @@ def test_paper_trader_equity_anchor() -> None:
     print("[OK] paper trader equity anchored at entry (multi-close tick)")
 
 
+def test_paper_trader_explicit_null_anchor() -> None:
+    """If state.json has equity_at_entry=null (key present, value None),
+    dict.setdefault leaves it as None and OpenPosition gets None. The
+    fallback MUST use migration_equity (pre-loop snapshot), not the
+    mutating state['equity'], otherwise the second position's dollar
+    P&L drifts."""
+    import json
+    from pathlib import Path
+    from unittest.mock import patch
+    from agents import paper_trader as pt
+    from agents.data_sources import Candle
+
+    bars = [Candle(1700000000 + i * 60, 100, 110, 80, 95, 1) for i in range(30)]
+    state = {
+        "equity": 10_000.0, "starting_equity": 10_000.0, "last_tick_ts": 0,
+        "open_positions": [
+            {"asset": "A", "direction": "long", "entry": 100, "stop": 99,
+             "tp1": 200, "tp2": None, "open_ts": 1700000000 - 3600,
+             "size_pct": 1.0, "confluence_score": 8,
+             "equity_at_entry": None},  # <-- explicit null, setdefault no-op
+            {"asset": "B", "direction": "long", "entry": 100, "stop": 50,
+             "tp1": 105, "tp2": None, "open_ts": 1700000000 - 3600,
+             "size_pct": 1.0, "confluence_score": 8,
+             "equity_at_entry": None},
+        ],
+        "closed_trades": [],
+    }
+    out = Path("/tmp/smoke_paper_null_anchor"); out.mkdir(exist_ok=True)
+    (out / "state.json").write_text(json.dumps(state))
+
+    with patch.object(pt, "fetch_ohlc", return_value=(bars, "test")):
+        diff = pt.tick(["A", "B"], out_dir=out, timeframe="15m")
+
+    # Expect 9910.0 same as other anchor tests; pre-fix would drift.
+    assert abs(diff["equity"] - 9910.0) < 1e-6, diff["equity"]
+    print("[OK] paper trader explicit-null anchor uses migration_equity fallback")
+
+
 def test_paper_trader_legacy_migration() -> None:
     """Legacy positions without equity_at_entry must all be anchored at
     the equity snapshot taken BEFORE phase 1 runs, not the running
@@ -294,6 +332,7 @@ def main() -> int:
     test_paper_trader_exits()
     test_paper_trader_equity_anchor()
     test_paper_trader_legacy_migration()
+    test_paper_trader_explicit_null_anchor()
     print("\nAll smoke tests passed.")
     return 0
 
