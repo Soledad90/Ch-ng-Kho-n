@@ -1,0 +1,154 @@
+{
+  "as_of": "2026-04-24 07:15 UTC",
+  "source": "kraken",
+  "mvrv_regime": "Discount",
+  "mvrv_direction": "bullish",
+  "mvrv_value": 1.44,
+  "bias_w1": "range",
+  "bias_d1": "range",
+  "bias_h4": "up",
+  "bias_htf": "range",
+  "bias_reason": "D1=range, H4=up, W1=range \u2014 mixed",
+  "poi": {
+    "premium_zone": [
+      75469.15,
+      90438.3
+    ],
+    "discount_zone": [
+      60500.0,
+      75469.15
+    ],
+    "current_in": "mid",
+    "ote_long": [
+      66787.043,
+      71936.4306
+    ],
+    "ote_short": [
+      79001.8694,
+      84151.257
+    ],
+    "nearest_support": 66487.66,
+    "nearest_resistance": 84450.64
+  },
+  "trigger": {
+    "sweep": "none",
+    "sweep_price": null,
+    "choch": "none",
+    "choch_price": null
+  },
+  "confluence": [
+    {
+      "name": "Bias HTF (D1/H4)",
+      "passed": false,
+      "note": "bias=range, want=n/a (no direction)"
+    },
+    {
+      "name": "POI valid",
+      "passed": false,
+      "note": "current_in=mid"
+    },
+    {
+      "name": "Liquidity Sweep",
+      "passed": false,
+      "note": "sweep=none"
+    },
+    {
+      "name": "CHoCH LTF (M15)",
+      "passed": false,
+      "note": "choch=none"
+    },
+    {
+      "name": "Fibonacci OTE",
+      "passed": false,
+      "note": "price=77735.00 in [0.00, 0.00]"
+    },
+    {
+      "name": "Volume Profile (POC proximity)",
+      "passed": true,
+      "note": "poc=77767.54999999999"
+    },
+    {
+      "name": "Momentum (RSI + MACD hist)",
+      "passed": false,
+      "note": "rsi=43.0, macd_hist=6.074947536691823"
+    },
+    {
+      "name": "Kill Zone",
+      "passed": true,
+      "note": "London 07-10 UTC or NY 12-15 UTC"
+    }
+  ],
+  "confluence_score": 2,
+  "direction": "none",
+  "entry": null,
+  "stop": null,
+  "tp1": null,
+  "tp2": null,
+  "rr": null,
+  "risk_pct": 1.0,
+  "size_hint": "n/a",
+  "scenario_a": "No valid setup",
+  "invalidation": "n/a",
+  "decision": "NO_TRADE",
+  "hard_stops": [],
+  "d1": {
+    "tf": "1d",
+    "close": 77735.0,
+    "ema20": 74467.92908541897,
+    "ema50": 72783.30983098644,
+    "ema200": 82560.95710229296,
+    "rsi14": 63.34819146481718,
+    "macd_hist": 372.48603684950604,
+    "atr14": 2433.425336946488,
+    "trend": "range",
+    "swing_high": 90438.3,
+    "swing_low": 60500.0,
+    "mid": 75469.15,
+    "poc": 68638.92916666667
+  },
+  "h4": {
+    "tf": "4h",
+    "close": 77735.0,
+    "ema20": 77475.61736809726,
+    "ema50": 76281.16844834876,
+    "ema200": 72841.89021747034,
+    "rsi14": 54.109820133508244,
+    "macd_hist": -79.07382936657177,
+    "atr14": 974.7041009490935,
+    "trend": "up",
+    "swing_high": 79490.7,
+    "swing_low": 70517.7,
+    "mid": 75004.2,
+    "poc": 67079.06041666666
+  },
+  "h1": {
+    "tf": "1h",
+    "close": 77735.0,
+    "ema20": 77978.042039213,
+    "ema50": 77802.81118730985,
+    "ema200": 76251.70919075844,
+    "rsi14": 45.27569390075608,
+    "macd_hist": -41.05783351169397,
+    "atr14": 420.52915184276844,
+    "trend": "range",
+    "swing_high": 79490.7,
+    "swing_low": 74744.0,
+    "mid": 77117.35,
+    "poc": 75710.37916666667
+  },
+  "m15": {
+    "tf": "15m",
+    "close": 77735.0,
+    "ema20": 77863.03598001109,
+    "ema50": 77945.21859149414,
+    "ema200": 77781.31193230925,
+    "rsi14": 42.9897377798359,
+    "macd_hist": 6.074947536691823,
+    "atr14": 156.7045814829868,
+    "trend": "range",
+    "swing_high": 78690.1,
+    "swing_low": 76984.3,
+    "mid": 77837.20000000001,
+    "poc": 77767.54999999999
+  }
+}

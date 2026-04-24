@@ -11,10 +11,13 @@ import urllib.request
 from dataclasses import dataclass
 from typing import Literal
 
-Timeframe = Literal["1d", "4h", "1h"]
+Timeframe = Literal["1d", "4h", "1h", "15m", "5m"]
 
-_KRAKEN_INTERVAL = {"1d": 1440, "4h": 240, "1h": 60}
-_CC_INTERVAL = {"1d": "histoday", "4h": "histohour", "1h": "histohour"}
+_KRAKEN_INTERVAL = {"1d": 1440, "4h": 240, "1h": 60, "15m": 15, "5m": 5}
+_CC_INTERVAL = {
+    "1d": "histoday", "4h": "histohour", "1h": "histohour",
+    "15m": "histominute", "5m": "histominute",
+}
 
 
 @dataclass
@@ -51,7 +54,7 @@ def fetch_kraken(pair: str = "XBTUSD", tf: Timeframe = "1d") -> list[Candle]:
 def fetch_cryptocompare(symbol: str = "BTC", tsym: str = "USD",
                         tf: Timeframe = "1d", limit: int = 500) -> list[Candle]:
     endpoint = _CC_INTERVAL[tf]
-    aggregate = {"1h": 1, "4h": 4, "1d": 1}[tf]
+    aggregate = {"5m": 5, "15m": 15, "1h": 1, "4h": 4, "1d": 1}[tf]
     url = (f"https://min-api.cryptocompare.com/data/v2/{endpoint}"
            f"?fsym={symbol}&tsym={tsym}&limit={limit}&aggregate={aggregate}")
     d = _http_json(url)

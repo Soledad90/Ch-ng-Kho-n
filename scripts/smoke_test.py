@@ -107,10 +107,34 @@ def test_orchestrator_matrix() -> None:
     print(f"[OK] orchestrator matrix ({len(expected)} combos)")
 
 
+def test_master_agent_pieces() -> None:
+    """Offline tests for master-agent helpers that don't need network."""
+    from agents import master_agent as m
+    from agents.data_sources import Candle
+    # _kill_zone
+    assert m._kill_zone(int(__import__("calendar").timegm((2026, 4, 24, 8, 0, 0, 0, 0, 0)))) is True
+    assert m._kill_zone(int(__import__("calendar").timegm((2026, 4, 24, 3, 0, 0, 0, 0, 0)))) is False
+    # _detect_sweep: craft 31 candles with last one wicking above prior high
+    base = [Candle(i, 100.0, 101.0, 99.0, 100.0, 1.0) for i in range(30)]
+    wick = Candle(31, 100.0, 105.0, 99.5, 100.5, 1.0)  # high>prev_high, close<prev_high
+    d, px = m._detect_sweep(base + [wick], lookback=30)
+    assert d == "bearish" and px == 101.0
+    # _poi classification
+    snap = m.TFSnapshot(
+        tf="1d", close=85.0, ema20=None, ema50=None, ema200=None,
+        rsi14=None, macd_hist=None, atr14=1.0, trend="up",
+        swing_high=100.0, swing_low=50.0, mid=75.0, poc=None,
+    )
+    poi = m._poi(snap)
+    assert poi.current_in == "premium", poi.current_in
+    print("[OK] master-agent helpers")
+
+
 def main() -> int:
     test_mvrv_agent_live()
     test_indicators_synthetic()
     test_orchestrator_matrix()
+    test_master_agent_pieces()
     print("\nAll smoke tests passed.")
     return 0
 
