@@ -1,0 +1,2 @@
+# Smart Money Institutional Trading System
+# No external dependencies required — pure Python 3.8+
