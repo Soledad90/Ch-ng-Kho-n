@@ -170,10 +170,16 @@ def tick(
 
     # ---- phase 1: check exits on open positions --------------------
     still_open: list[dict] = []
+    # Snapshot the equity BEFORE any P&L applies this tick. Used as the
+    # best-effort anchor for legacy positions that predate the
+    # equity_at_entry field. If we read state["equity"] inside the loop
+    # it would drift as earlier positions close, reintroducing the same
+    # order-dependent P&L bug the anchor was meant to fix (and the wrong
+    # anchor would also be persisted back to state.json for positions
+    # that stay open).
+    migration_equity: float = float(state["equity"])
     for pdict in state["open_positions"]:
-        # Migration: older state.json files predate `equity_at_entry`.
-        # Use the current equity as a best-effort anchor for those.
-        pdict.setdefault("equity_at_entry", state["equity"])
+        pdict.setdefault("equity_at_entry", migration_equity)
         pos = OpenPosition(**pdict)
         try:
             candles, _ = fetch_ohlc(timeframe, pos.asset)  # type: ignore[arg-type]

@@ -245,6 +245,44 @@ def test_paper_trader_equity_anchor() -> None:
     print("[OK] paper trader equity anchored at entry (multi-close tick)")
 
 
+def test_paper_trader_legacy_migration() -> None:
+    """Legacy positions without equity_at_entry must all be anchored at
+    the equity snapshot taken BEFORE phase 1 runs, not the running
+    mutating equity."""
+    import json
+    from pathlib import Path
+    from unittest.mock import patch
+    from agents import paper_trader as pt
+    from agents.data_sources import Candle
+
+    bars = [Candle(1700000000 + i * 60, 100, 110, 80, 95, 1) for i in range(30)]
+    # Same scenario as the anchor test, but legacy positions WITHOUT
+    # equity_at_entry in state.json.
+    state = {
+        "equity": 10_000.0, "starting_equity": 10_000.0, "last_tick_ts": 0,
+        "open_positions": [
+            {"asset": "A", "direction": "long", "entry": 100, "stop": 99,
+             "tp1": 200, "tp2": None, "open_ts": 1700000000 - 3600,
+             "size_pct": 1.0, "confluence_score": 8},
+            {"asset": "B", "direction": "long", "entry": 100, "stop": 50,
+             "tp1": 105, "tp2": None, "open_ts": 1700000000 - 3600,
+             "size_pct": 1.0, "confluence_score": 8},
+        ],
+        "closed_trades": [],
+    }
+    out = Path("/tmp/smoke_paper_legacy"); out.mkdir(exist_ok=True)
+    (out / "state.json").write_text(json.dumps(state))
+
+    with patch.object(pt, "fetch_ohlc", return_value=(bars, "test")):
+        diff = pt.tick(["A", "B"], out_dir=out, timeframe="15m")
+
+    # Both legacy positions should migrate to equity_at_entry=10000
+    # (the snapshot taken before the loop), NOT 9900 (the drifted value
+    # after A closes).
+    assert abs(diff["equity"] - 9910.0) < 1e-6, diff["equity"]
+    print("[OK] paper trader legacy migration uses pre-loop equity snapshot")
+
+
 def main() -> int:
     test_mvrv_agent_live()
     test_indicators_synthetic()
@@ -255,6 +293,7 @@ def main() -> int:
     test_liq_heatmap()
     test_paper_trader_exits()
     test_paper_trader_equity_anchor()
+    test_paper_trader_legacy_migration()
     print("\nAll smoke tests passed.")
     return 0
 
