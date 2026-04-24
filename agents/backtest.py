@@ -214,7 +214,7 @@ def _decide_backtest(candles: list[Candle], mvrv_dir: str) -> tuple[Direction, s
 def _walk_forward_exit(
     direction: str, entry: float, stop: float, tp1: float,
     future: list[Candle], max_hold: int, fill_window: int,
-) -> tuple[int, float, str, int] | None:
+) -> tuple[int, float, str, int, int] | None:
     """Two-phase fill-then-exit simulator.
 
     Phase 1 (fill validation): walk forward up to `fill_window` bars and
@@ -228,8 +228,10 @@ def _walk_forward_exit(
     Pessimistic same-bar rule: if a single bar touches both SL and TP1
     (including the fill bar), SL wins.
 
-    Returns ``(close_ts, exit_price, reason, bars_held_from_entry)`` or
-    ``None`` when the entry was never filled.
+    Returns ``(close_ts, exit_price, reason, bars_held_from_entry, fill_idx)``
+    where ``fill_idx`` is the 1-based offset from the signal bar at which
+    the entry actually filled (1 = next bar). Returns ``None`` when the
+    entry was never filled within ``fill_window``.
     """
     # Phase 1: find the fill bar.
     fill_idx: int | None = None
@@ -248,17 +250,17 @@ def _walk_forward_exit(
     for j, c in enumerate(bars, start=1):
         if direction == "long":
             if c.low <= stop:
-                return c.ts, stop, "sl", j
+                return c.ts, stop, "sl", j, fill_idx
             if c.high >= tp1:
-                return c.ts, tp1, "tp1", j
+                return c.ts, tp1, "tp1", j, fill_idx
         else:
             if c.high >= stop:
-                return c.ts, stop, "sl", j
+                return c.ts, stop, "sl", j, fill_idx
             if c.low <= tp1:
-                return c.ts, tp1, "tp1", j
+                return c.ts, tp1, "tp1", j, fill_idx
     if bars:
         last = bars[-1]
-        return last.ts, last.close, "timeout", len(bars)
+        return last.ts, last.close, "timeout", len(bars), fill_idx
     return None
 
 
@@ -339,7 +341,7 @@ def run_backtest(
             # No fill within fill_window; walk forward one bar and retry.
             i += 1
             continue
-        close_ts, exit_price, reason, held = result
+        close_ts, exit_price, reason, held, fill_idx = result
 
         if direction == "long":
             pnl_pct = (exit_price - entry) / entry * 100
@@ -355,7 +357,13 @@ def run_backtest(
             pnl_pct=round(pnl_pct, 3), r_multiple=round(r_mult, 3),
             confluence_score=score,
         ))
-        last_exit_bar = i + held
+        # Exit bar index in the full `candles` array =
+        #   signal_bar (i) + fill_delay (fill_idx) + exit_offset (held - 1).
+        # Example: fill_idx=3, held=2 -> fill at i+3, exit at i+3+1 = i+4.
+        # Previously we used `i + held` which ignored fill delay and could
+        # let the next signal scan start while the prior trade was still
+        # (notionally) open, breaking cooldown enforcement.
+        last_exit_bar = i + fill_idx + held - 1
         i = last_exit_bar + 1
 
     stats = _compute_stats(trades, candles)
