@@ -177,6 +177,60 @@ def test_master_agent_pieces() -> None:
     print("[OK] master-agent helpers")
 
 
+def test_scheduler_flip_detection() -> None:
+    """Verify scheduler fires alerts only on NO_TRADE->TRADE or direction flip."""
+    from pathlib import Path
+    from unittest.mock import patch
+    from agents import scheduler as sch
+
+    class _Sig:
+        def __init__(self, d, dr):
+            self.decision = d; self.direction = dr
+            self.entry = 100.0; self.stop = 95.0; self.tp1 = 110.0; self.tp2 = 120.0
+            self.rr = 2.0; self.confluence_score = 8
+            self.bias_htf = "bullish"; self.bias_reason = "test"
+            self.mvrv_regime = "Discount"; self.mvrv_value = 1.44
+            self.macro_kind = "MVRV"; self.as_of = "test"
+
+    state = Path("/tmp/smoke_sched_state.json")
+    if state.exists():
+        state.unlink()
+
+    with patch.object(sch, "_run_agent", return_value=_Sig("NO_TRADE", "none")):
+        assert sch.tick(["BTC"], state) == []
+
+    fake_dispatched: list = []
+    def _fake(subject, body, env=None):
+        from agents.alerts import DispatchResult
+        fake_dispatched.append(subject)
+        return DispatchResult(telegram="ok")
+
+    with patch.object(sch, "_run_agent", return_value=_Sig("TRADE", "long")), \
+         patch.object(sch.alerts, "dispatch", side_effect=_fake):
+        fired = sch.tick(["BTC"], state)
+        assert len(fired) == 1 and fired[0].new_decision == "TRADE"
+
+    with patch.object(sch, "_run_agent", return_value=_Sig("TRADE", "short")), \
+         patch.object(sch.alerts, "dispatch", side_effect=_fake):
+        fired = sch.tick(["BTC"], state)
+        assert len(fired) == 1 and "flipped" in fired[0].reason
+
+    with patch.object(sch, "_run_agent", return_value=_Sig("TRADE", "short")), \
+         patch.object(sch.alerts, "dispatch", side_effect=_fake):
+        assert sch.tick(["BTC"], state) == []
+    print("[OK] scheduler flip detection (flip + direction change + no-op)")
+
+
+def test_alerts_skip_without_env() -> None:
+    from agents.alerts import dispatch
+    r = dispatch("subj", "body", env={})
+    assert r.telegram == "skipped"
+    assert r.discord == "skipped"
+    assert r.email == "skipped"
+    assert not r.any_ok()
+    print("[OK] alerts skip gracefully without env vars")
+
+
 def main() -> int:
     test_mvrv_agent_live()
     test_indicators_synthetic()
@@ -185,6 +239,8 @@ def main() -> int:
     test_fvg_ob_synthetic()
     test_futures_classify()
     test_liq_heatmap()
+    test_scheduler_flip_detection()
+    test_alerts_skip_without_env()
     print("\nAll smoke tests passed.")
     return 0
 
