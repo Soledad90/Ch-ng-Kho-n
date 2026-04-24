@@ -18,6 +18,7 @@ from typing import Literal
 
 from . import indicators as ind
 from . import mvrv_agent
+from . import futures_data as fut
 from .data_sources import Candle, fetch_ohlc
 
 
@@ -63,6 +64,23 @@ class Trigger:
     sweep_price: float | None
     choch: str                             # "bullish" | "bearish" | "none"
     choch_price: float | None
+    nearest_fvg_long: tuple[float, float] | None   # (lo, hi) unmitigated
+    nearest_fvg_short: tuple[float, float] | None
+    nearest_ob_long: tuple[float, float] | None
+    nearest_ob_short: tuple[float, float] | None
+
+
+@dataclass
+class Futures:
+    funding_rate: float                    # per 8h period
+    funding_regime: str                    # extreme_long/mild_long/neutral/mild_short/extreme_short/unknown
+    oi_trend: str                          # rising/falling/flat/unknown
+    oi_change_pct: float | None            # % change over last 12 bars
+    ls_ratio: float | None                 # long/short account ratio (OKX)
+    liq_poc_long: float | None             # price magnet below (longs got liquidated)
+    liq_poc_short: float | None            # price magnet above (shorts got liquidated)
+    liq_total_long: float                  # sum of recent long liquidations
+    liq_total_short: float
 
 
 @dataclass
@@ -86,6 +104,7 @@ class MasterSignal:
     bias_reason: str
     poi: POI
     trigger: Trigger
+    futures: Futures
     confluence: list[ConfluenceItem]
     confluence_score: int
     direction: Direction
@@ -257,8 +276,102 @@ def _poi(d1: TFSnapshot) -> POI:
     )
 
 
+def _fvg_ob_from_candles(candles: list[Candle]) -> dict:
+    """Return the nearest unmitigated bullish/bearish FVG and OB to current price."""
+    opens = [c.open for c in candles]
+    highs = [c.high for c in candles]
+    lows = [c.low for c in candles]
+    closes = [c.close for c in candles]
+    close = closes[-1]
+
+    fvgs = ind.detect_fvg(highs, lows, closes, lookback=120)
+    obs = ind.detect_order_blocks(opens, highs, lows, closes, lookback=120)
+
+    def _nearest(items: list[dict], kind: str, side: str) -> tuple[float, float] | None:
+        cand = [x for x in items if x["kind"] == kind and not x["mitigated"]]
+        if not cand:
+            return None
+        if side == "below":
+            cand = [x for x in cand if x["hi"] <= close]
+        else:
+            cand = [x for x in cand if x["lo"] >= close]
+        if not cand:
+            return None
+        # closest to current price
+        best = min(cand, key=lambda x: abs(((x["lo"] + x["hi"]) / 2) - close))
+        return (best["lo"], best["hi"])
+
+    return {
+        "fvg_long": _nearest(fvgs, "bullish", "below"),
+        "fvg_short": _nearest(fvgs, "bearish", "above"),
+        "ob_long": _nearest(obs, "bullish", "below"),
+        "ob_short": _nearest(obs, "bearish", "above"),
+    }
+
+
+def _classify_funding(rate: float) -> str:
+    """Per-8h funding rate regime."""
+    if rate > 0.0003:           # > 0.03% / 8h (~33% annualized)
+        return "extreme_long"   # longs pay heavily -> crowd is long
+    if rate > 0.0001:
+        return "mild_long"
+    if rate < -0.0003:
+        return "extreme_short"
+    if rate < -0.0001:
+        return "mild_short"
+    return "neutral"
+
+
+def _build_futures() -> Futures:
+    try:
+        cur_rate, _fhist = fut.fetch_funding_rate(limit=8)
+    except Exception:
+        cur_rate = 0.0
+    try:
+        oi = fut.fetch_open_interest("1H", limit=24)
+    except Exception:
+        oi = []
+    try:
+        lsr = fut.fetch_long_short_ratio("1H", limit=24)
+    except Exception:
+        lsr = []
+    try:
+        liq = fut.fetch_liquidations(limit=100)
+        heat = fut.liquidation_heatmap(liq, bins=40)
+    except Exception:
+        heat = {"poc_long": None, "poc_short": None,
+                "total_long": 0.0, "total_short": 0.0}
+
+    oi_change = None
+    oi_trend = "unknown"
+    if len(oi) >= 12:
+        old = oi[-12].oi_usd
+        new = oi[-1].oi_usd
+        if old:
+            oi_change = (new - old) / old * 100
+            if oi_change > 1.0:
+                oi_trend = "rising"
+            elif oi_change < -1.0:
+                oi_trend = "falling"
+            else:
+                oi_trend = "flat"
+
+    return Futures(
+        funding_rate=cur_rate,
+        funding_regime=_classify_funding(cur_rate),
+        oi_trend=oi_trend,
+        oi_change_pct=round(oi_change, 2) if oi_change is not None else None,
+        ls_ratio=lsr[-1][1] if lsr else None,
+        liq_poc_long=heat.get("poc_long"),
+        liq_poc_short=heat.get("poc_short"),
+        liq_total_long=float(heat.get("total_long") or 0.0),
+        liq_total_short=float(heat.get("total_short") or 0.0),
+    )
+
+
 def _confluence(direction: Direction, bias: Bias, poi: POI, trig: Trigger,
-                m15: TFSnapshot, h4: TFSnapshot, in_kill_zone: bool) -> list[ConfluenceItem]:
+                futures: Futures, m15: TFSnapshot, h4: TFSnapshot,
+                in_kill_zone: bool) -> list[ConfluenceItem]:
     items: list[ConfluenceItem] = []
     # 1. Bias HTF
     if direction == "none":
@@ -322,6 +435,60 @@ def _confluence(direction: Direction, bias: Bias, poi: POI, trig: Trigger,
     # 8. Kill zone
     items.append(ConfluenceItem("Kill Zone", in_kill_zone,
                                 "London 07-10 UTC or NY 12-15 UTC"))
+    # 9. Funding rate alignment (contrarian: avoid crowded side)
+    fr = futures.funding_rate
+    fr_bps = fr * 10000
+    if direction == "long":
+        fund_ok = futures.funding_regime in ("neutral", "mild_short", "extreme_short")
+    elif direction == "short":
+        fund_ok = futures.funding_regime in ("neutral", "mild_long", "extreme_long")
+    else:
+        fund_ok = False
+    items.append(ConfluenceItem(
+        "Funding Rate (contrarian)", fund_ok,
+        f"rate={fr_bps:.2f} bps/8h, regime={futures.funding_regime}",
+    ))
+    # 10. OI trend confirmation
+    if direction == "long":
+        oi_ok = futures.oi_trend == "rising"
+    elif direction == "short":
+        oi_ok = futures.oi_trend == "rising"  # rising OI on drop = shorts stacking (valid for short)
+    else:
+        oi_ok = False
+    items.append(ConfluenceItem(
+        "Open Interest trend", oi_ok,
+        f"oi_trend={futures.oi_trend}, change={futures.oi_change_pct}%",
+    ))
+    # 11. OB/FVG proximity
+    if direction == "long":
+        zone = trig.nearest_ob_long or trig.nearest_fvg_long
+    elif direction == "short":
+        zone = trig.nearest_ob_short or trig.nearest_fvg_short
+    else:
+        zone = None
+    ob_fvg_ok = False
+    zone_note = "no unmitigated OB/FVG found"
+    if zone is not None:
+        lo, hi = zone
+        # pass if current price is inside zone OR within 0.5 ATR of zone edge
+        atr = m15.atr14 or (m15.close * 0.005)
+        ob_fvg_ok = (lo - 0.5 * atr) <= price <= (hi + 0.5 * atr)
+        zone_note = f"zone [{lo:.2f}, {hi:.2f}], price={price:.2f}"
+    items.append(ConfluenceItem("OB/FVG zone (3-candle)", ob_fvg_ok, zone_note))
+    # 12. Liquidation magnet
+    if direction == "long":
+        magnet = futures.liq_poc_short    # upside magnet = shorts liquidated above
+        mag_ok = magnet is not None and magnet > price
+    elif direction == "short":
+        magnet = futures.liq_poc_long
+        mag_ok = magnet is not None and magnet < price
+    else:
+        magnet = None
+        mag_ok = False
+    items.append(ConfluenceItem(
+        "Liquidation magnet (target)", mag_ok,
+        f"magnet={magnet}, price={price:.2f}" if magnet else "no magnet",
+    ))
     return items
 
 
@@ -404,21 +571,36 @@ def run(risk_pct: float = 1.0) -> MasterSignal:
     # Layer 2: POI
     poi = _poi(d1)
 
-    # Layer 3: Trigger on M15
+    # Layer 3: Trigger on M15 (sweep + CHoCH + unmitigated OB/FVG)
     sweep_dir, sweep_price = _detect_sweep(c_m15, lookback=30)
     choch_dir, choch_price = _detect_choch(c_m15)
-    trig = Trigger(sweep=sweep_dir, sweep_price=sweep_price,
-                   choch=choch_dir, choch_price=choch_price)
+    zones = _fvg_ob_from_candles(c_m15)
+    trig = Trigger(
+        sweep=sweep_dir, sweep_price=sweep_price,
+        choch=choch_dir, choch_price=choch_price,
+        nearest_fvg_long=zones["fvg_long"], nearest_fvg_short=zones["fvg_short"],
+        nearest_ob_long=zones["ob_long"], nearest_ob_short=zones["ob_short"],
+    )
+
+    # Futures microstructure (funding, OI, L/S, liquidations)
+    futures = _build_futures()
 
     # Direction
     direction = _decide_direction(bias, poi, trig)
 
     # Layer 4: Execution
     entry, stop, tp1, tp2 = _build_execution(direction, poi, m15, h4)
+    # Prefer liquidation magnet as TP2 if it extends further in our favour
+    if direction == "long" and futures.liq_poc_short and tp2:
+        if futures.liq_poc_short > tp2:
+            tp2 = futures.liq_poc_short
+    elif direction == "short" and futures.liq_poc_long and tp2:
+        if futures.liq_poc_long < tp2:
+            tp2 = futures.liq_poc_long
 
     # Confluence scorecard
     in_kz = _kill_zone(c_m15[-1].ts)
-    confluence = _confluence(direction, bias, poi, trig, m15, h4, in_kz)
+    confluence = _confluence(direction, bias, poi, trig, futures, m15, h4, in_kz)
     score = sum(1 for c in confluence if c.passed)
 
     # RR guard
@@ -430,8 +612,9 @@ def run(risk_pct: float = 1.0) -> MasterSignal:
         if rr < 2.0:
             hard_stops.append(f"RR(TP1)={rr} < 1:2 — hard-stop per AGENT.md Rule #3")
 
+    # Need 7/12 confluence factors (~58% same bar as old 5/8)
     decision = "TRADE" if (
-        score >= 5 and direction != "none" and not hard_stops and rr and rr >= 2.0
+        score >= 7 and direction != "none" and not hard_stops and rr and rr >= 2.0
     ) else "NO_TRADE"
 
     scenario_a = (
@@ -457,7 +640,7 @@ def run(risk_pct: float = 1.0) -> MasterSignal:
         mvrv_regime=mv.regime, mvrv_direction=mv.direction, mvrv_value=mv.mvrv,
         bias_w1=w1_trend, bias_d1=d1.trend, bias_h4=h4.trend,
         bias_htf=bias, bias_reason=bias_reason,
-        poi=poi, trigger=trig,
+        poi=poi, trigger=trig, futures=futures,
         confluence=confluence, confluence_score=score,
         direction=direction, entry=entry, stop=stop, tp1=tp1, tp2=tp2, rr=rr,
         risk_pct=risk_pct, size_hint=size_hint,

@@ -107,6 +107,53 @@ def test_orchestrator_matrix() -> None:
     print(f"[OK] orchestrator matrix ({len(expected)} combos)")
 
 
+def test_fvg_ob_synthetic() -> None:
+    from agents import indicators as ind
+    # Construct synthetic bullish FVG: candles with big gap at index 2
+    opens = [100, 101, 105, 110, 112]
+    highs = [102, 103, 108, 112, 115]  # highs[0]=102 < lows[2]=107 -> bullish FVG at idx 2
+    lows = [100, 101, 107, 110, 112]
+    closes = [101, 102, 107, 111, 114]
+    fvgs = ind.detect_fvg(highs, lows, closes, lookback=10)
+    assert any(f["kind"] == "bullish" and f["idx"] == 2 for f in fvgs), fvgs
+    # Construct OB: big impulsive up candle preceded by down candle
+    # need >14 candles for ATR; ATR of flat base is ~2, impulse body must be 3
+    opens = [100] * 14 + [99, 110]
+    highs = [101] * 14 + [100, 120]
+    lows = [99] * 14 + [97, 109]
+    closes = [100] * 14 + [97, 119]   # idx 14 is down, idx 15 is big up (body=9)
+    obs = ind.detect_order_blocks(opens, highs, lows, closes, lookback=20,
+                                   impulse_atr_mult=1.5)
+    assert any(o["kind"] == "bullish" and o["idx"] == 14 for o in obs), obs
+    print("[OK] FVG + OB detectors")
+
+
+def test_futures_classify() -> None:
+    from agents.master_agent import _classify_funding
+    assert _classify_funding(0.0) == "neutral"
+    assert _classify_funding(0.0005) == "extreme_long"
+    assert _classify_funding(0.00015) == "mild_long"
+    assert _classify_funding(-0.0005) == "extreme_short"
+    assert _classify_funding(-0.00015) == "mild_short"
+    print("[OK] funding classifier")
+
+
+def test_liq_heatmap() -> None:
+    from agents.futures_data import LiquidationEvent, liquidation_heatmap
+    events = [
+        LiquidationEvent(0, "long", 100.0, 1.0),
+        LiquidationEvent(1, "long", 100.5, 2.0),   # cluster
+        LiquidationEvent(2, "short", 110.0, 3.0),  # cluster
+        LiquidationEvent(3, "short", 120.0, 1.0),
+    ]
+    h = liquidation_heatmap(events, bins=10)
+    assert h["total_long"] == 3.0
+    assert h["total_short"] == 4.0
+    assert h["poc_long"] is not None and abs(h["poc_long"] - 100.0) < 3.0
+    assert h["poc_short"] is not None and abs(h["poc_short"] - 110.0) < 3.0
+    print("[OK] liquidation heatmap")
+
+
 def test_master_agent_pieces() -> None:
     """Offline tests for master-agent helpers that don't need network."""
     from agents import master_agent as m
@@ -135,6 +182,9 @@ def main() -> int:
     test_indicators_synthetic()
     test_orchestrator_matrix()
     test_master_agent_pieces()
+    test_fvg_ob_synthetic()
+    test_futures_classify()
+    test_liq_heatmap()
     print("\nAll smoke tests passed.")
     return 0
 

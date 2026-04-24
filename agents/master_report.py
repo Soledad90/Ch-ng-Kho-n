@@ -15,6 +15,13 @@ def _fmt(x, n: int = 2) -> str:
     return str(x)
 
 
+def _zone(z) -> str:
+    if z is None:
+        return "—"
+    lo, hi = z
+    return f"${lo:,.2f} — ${hi:,.2f}"
+
+
 def to_markdown(s: MasterSignal) -> str:
     conf_rows = "\n".join(
         f"| {i+1} | {c.name} | {'PASS' if c.passed else 'FAIL'} | {c.note} |"
@@ -66,16 +73,31 @@ def to_markdown(s: MasterSignal) -> str:
 |---|---|
 | Liquidity sweep | {s.trigger.sweep} @ {_fmt(s.trigger.sweep_price)} |
 | CHoCH | {s.trigger.choch} @ {_fmt(s.trigger.choch_price)} |
+| Nearest unmitigated bullish FVG (below) | {_zone(s.trigger.nearest_fvg_long)} |
+| Nearest unmitigated bearish FVG (above) | {_zone(s.trigger.nearest_fvg_short)} |
+| Nearest unmitigated bullish OB (demand) | {_zone(s.trigger.nearest_ob_long)} |
+| Nearest unmitigated bearish OB (supply) | {_zone(s.trigger.nearest_ob_short)} |
 
-## 4. Confluence Matrix (pass ≥ 5/8)
+## 4. Futures Microstructure (OKX)
+
+| Field | Value |
+|---|---|
+| Funding rate (per 8h) | {s.futures.funding_rate * 10000:.2f} bps → **{s.futures.funding_regime}** |
+| OI trend (12x1h) | {s.futures.oi_trend} ({s.futures.oi_change_pct}%) |
+| Long/Short account ratio | {s.futures.ls_ratio} |
+| Liq magnet below (longs rekt) | ${_fmt(s.futures.liq_poc_long)} |
+| Liq magnet above (shorts rekt) | ${_fmt(s.futures.liq_poc_short)} |
+| Total liq volume (~100 events) | {s.futures.liq_total_long:.1f} long / {s.futures.liq_total_short:.1f} short |
+
+## 5. Confluence Matrix (pass ≥ 7/12)
 
 | # | Factor | Result | Note |
 |---|--------|--------|------|
 {conf_rows}
 
-**Score: {s.confluence_score}/8** → {'ENOUGH' if s.confluence_score >= 5 else 'NOT ENOUGH'}
+**Score: {s.confluence_score}/12** → {'ENOUGH' if s.confluence_score >= 7 else 'NOT ENOUGH'}
 
-## 5. Execution Plan
+## 6. Execution Plan
 
 | Field | Value |
 |---|---|
