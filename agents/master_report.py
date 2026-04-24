@@ -30,7 +30,7 @@ def to_markdown(s: MasterSignal) -> str:
     hard_stops_md = "\n".join(f"- {h}" for h in s.hard_stops) or "- (none)"
     decision_badge = s.decision
 
-    return f"""# BTC/USDT — {s.as_of}
+    return f"""# {s.asset}/USDT — {s.as_of}
 
 ## Decision: {decision_badge}  (Confluence {s.confluence_score}/12)
 
@@ -52,7 +52,7 @@ def to_markdown(s: MasterSignal) -> str:
 | H4 | {s.bias_h4} |
 
 **Kết luận Bias:** **{s.bias_htf.upper()}** — {s.bias_reason}
-**MVRV overlay:** {s.mvrv_regime} (value={s.mvrv_value:.2f}, direction={s.mvrv_direction})
+**{s.macro_kind} overlay:** {s.mvrv_regime} (value={s.mvrv_value:.4f}, direction={s.mvrv_direction})
 
 ## 2. POI & Liquidity
 
@@ -78,7 +78,7 @@ def to_markdown(s: MasterSignal) -> str:
 | Nearest unmitigated bullish OB (demand) | {_zone(s.trigger.nearest_ob_long)} |
 | Nearest unmitigated bearish OB (supply) | {_zone(s.trigger.nearest_ob_short)} |
 
-## 4. Futures Microstructure (OKX)
+## 4. Futures Microstructure ({s.asset}-USDT-SWAP @ OKX)
 
 | Field | Value |
 |---|---|
@@ -128,12 +128,14 @@ def to_json(s: MasterSignal) -> str:
     return json.dumps(s.to_dict(), indent=2, default=float)
 
 
-def save(md: str, js: str, out_dir: Path, tag: str = "BTCUSDT_MASTER") -> tuple[Path, Path]:
+def save(md: str, js: str, out_dir: Path, tag: str = "MASTER",
+         asset: str | None = None) -> tuple[Path, Path]:
     out_dir.mkdir(parents=True, exist_ok=True)
     from datetime import datetime, timezone
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    md_path = out_dir / f"{stamp}_{tag}.md"
-    js_path = out_dir / f"{stamp}_{tag}.json"
+    prefix = f"{asset}USDT_" if asset else "BTCUSDT_"
+    md_path = out_dir / f"{stamp}_{prefix}{tag}.md"
+    js_path = out_dir / f"{stamp}_{prefix}{tag}.json"
     md_path.write_text(md)
     js_path.write_text(js)
     return md_path, js_path

@@ -1,5 +1,5 @@
 {
-  "as_of": "2026-04-24 07:45 UTC",
+  "as_of": "2026-04-24 09:15 UTC",
   "source": "kraken",
   "mvrv_regime": "Discount",
   "mvrv_direction": "bullish",
@@ -33,32 +33,29 @@
   "trigger": {
     "sweep": "none",
     "sweep_price": null,
-    "choch": "none",
-    "choch_price": null,
+    "choch": "bearish",
+    "choch_price": 77578.3,
     "nearest_fvg_long": null,
     "nearest_fvg_short": [
-      77749.3,
-      77791.8
+      77633.9,
+      77778.2
     ],
-    "nearest_ob_long": [
-      77193.8,
-      77639.1
-    ],
+    "nearest_ob_long": null,
     "nearest_ob_short": [
-      78158.4,
-      78169.1
+      77778.2,
+      77813.5
     ]
   },
   "futures": {
-    "funding_rate": -9.3074696569e-06,
+    "funding_rate": -3.4278990119e-06,
     "funding_regime": "neutral",
     "oi_trend": "flat",
-    "oi_change_pct": 0.49,
-    "ls_ratio": 0.78,
-    "liq_poc_long": 77156.795,
+    "oi_change_pct": -0.21,
+    "ls_ratio": 0.8,
+    "liq_poc_long": 77040.775,
     "liq_poc_short": 78375.005,
-    "liq_total_long": 10591.72,
-    "liq_total_short": 6758.24
+    "liq_total_long": 8950.23,
+    "liq_total_short": 6713.5599999999995
   },
   "confluence": [
     {
@@ -79,12 +76,12 @@
     {
       "name": "CHoCH LTF (M15)",
       "passed": false,
-      "note": "choch=none"
+      "note": "choch=bearish"
     },
     {
       "name": "Fibonacci OTE",
       "passed": false,
-      "note": "price=77735.70 in [0.00, 0.00]"
+      "note": "price=77492.30 in [0.00, 0.00]"
     },
     {
       "name": "Volume Profile (POC proximity)",
@@ -94,7 +91,7 @@
     {
       "name": "Momentum (RSI + MACD hist)",
       "passed": false,
-      "note": "rsi=43.7, macd_hist=1.5220894902159046"
+      "note": "rsi=37.6, macd_hist=-13.399521394278054"
     },
     {
       "name": "Kill Zone",
@@ -104,12 +101,12 @@
     {
       "name": "Funding Rate (contrarian)",
       "passed": false,
-      "note": "rate=-0.09 bps/8h, regime=neutral"
+      "note": "rate=-0.03 bps/8h, regime=neutral"
     },
     {
       "name": "Open Interest trend",
       "passed": false,
-      "note": "oi_trend=flat, change=0.49%"
+      "note": "oi_trend=flat, change=-0.21%"
     },
     {
       "name": "OB/FVG zone (3-candle)",
@@ -137,13 +134,13 @@
   "hard_stops": [],
   "d1": {
     "tf": "1d",
-    "close": 77735.7,
-    "ema20": 74467.99575208564,
-    "ema50": 72783.33728196683,
-    "ema200": 82560.9640674671,
-    "rsi14": 63.3508836782543,
-    "macd_hist": 372.5307092141777,
-    "atr14": 2433.425336946488,
+    "close": 77492.3,
+    "ema20": 74444.81479970469,
+    "ema50": 72773.79218392762,
+    "ema200": 82558.54217691983,
+    "rsi14": 62.42835538451639,
+    "macd_hist": 356.9974898409632,
+    "atr14": 2436.7467655179166,
     "trend": "range",
     "swing_high": 90438.3,
     "swing_low": 60500.0,
@@ -152,13 +149,13 @@
   },
   "h4": {
     "tf": "4h",
-    "close": 77735.7,
-    "ema20": 77475.68403476392,
-    "ema50": 76281.19589932915,
-    "ema200": 72841.89718264448,
-    "rsi14": 54.11508019291321,
-    "macd_hist": -79.02915700189999,
-    "atr14": 974.7041009490935,
+    "close": 77492.3,
+    "ema20": 77469.64927408347,
+    "ema50": 76325.35945883255,
+    "ema200": 72887.45367522363,
+    "rsi14": 52.26200659439361,
+    "macd_hist": -120.54084381754467,
+    "atr14": 946.5752365955863,
     "trend": "up",
     "swing_high": 79490.7,
     "swing_low": 70517.7,
@@ -167,32 +164,34 @@
   },
   "h1": {
     "tf": "1h",
-    "close": 77735.7,
-    "ema20": 77978.10870587967,
-    "ema50": 77802.83863829024,
-    "ema200": 76251.71615593258,
-    "rsi14": 45.28729980965935,
-    "macd_hist": -41.01316114702226,
-    "atr14": 427.129151842768,
+    "close": 77492.3,
+    "ema20": 77910.76545721562,
+    "ema50": 77787.86224677767,
+    "ema200": 76278.4462838008,
+    "rsi14": 41.99984368837756,
+    "macd_hist": -58.71903276346451,
+    "atr14": 427.514859059762,
     "trend": "range",
     "swing_high": 79490.7,
-    "swing_low": 74744.0,
-    "mid": 77117.35,
+    "swing_low": 74850.0,
+    "mid": 77170.35,
     "poc": 75710.37916666667
   },
   "m15": {
     "tf": "15m",
-    "close": 77735.7,
-    "ema20": 77836.05975212871,
-    "ema50": 77927.40818649724,
-    "ema200": 77780.04708365246,
-    "rsi14": 43.66230889187132,
-    "macd_hist": 1.5220894902159046,
-    "atr14": 148.16750721164257,
+    "close": 77492.3,
+    "ema20": 77762.14857004573,
+    "ema50": 77874.9758785501,
+    "ema200": 77774.79770076084,
+    "rsi14": 37.568784208303114,
+    "macd_hist": -13.399521394278054,
+    "atr14": 171.82367849316515,
     "trend": "range",
     "swing_high": 78690.1,
     "swing_low": 76984.3,
     "mid": 77837.20000000001,
     "poc": 77767.54999999999
-  }
+  },
+  "asset": "BTC",
+  "macro_kind": "MVRV"
 }

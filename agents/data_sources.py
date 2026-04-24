@@ -12,6 +12,10 @@ from dataclasses import dataclass
 from typing import Literal
 
 Timeframe = Literal["1d", "4h", "1h", "15m", "5m"]
+Asset = Literal["BTC", "ETH", "SOL"]
+
+_KRAKEN_PAIR = {"BTC": "XBTUSD", "ETH": "ETHUSD", "SOL": "SOLUSD"}
+_CC_SYMBOL = {"BTC": "BTC", "ETH": "ETH", "SOL": "SOL"}
 
 _KRAKEN_INTERVAL = {"1d": 1440, "4h": 240, "1h": 60, "15m": 15, "5m": 5}
 _CC_INTERVAL = {
@@ -68,18 +72,20 @@ def fetch_cryptocompare(symbol: str = "BTC", tsym: str = "USD",
     ]
 
 
-def fetch_ohlc(tf: Timeframe = "1d") -> tuple[list[Candle], str]:
+def fetch_ohlc(tf: Timeframe = "1d", asset: Asset = "BTC") -> tuple[list[Candle], str]:
     """Try Kraken first, fall back to CryptoCompare. Returns (candles, source)."""
     errors: list[str] = []
+    pair = _KRAKEN_PAIR.get(asset, "XBTUSD")
+    sym = _CC_SYMBOL.get(asset, "BTC")
     try:
-        c = fetch_kraken("XBTUSD", tf)
+        c = fetch_kraken(pair, tf)
         if c:
             return c, "kraken"
         errors.append("kraken returned empty data")
     except Exception as e:
         errors.append(f"kraken failed: {e}")
     try:
-        c = fetch_cryptocompare("BTC", "USD", tf)
+        c = fetch_cryptocompare(sym, "USD", tf)
         if c:
             return c, "cryptocompare"
         errors.append("cryptocompare returned empty data")

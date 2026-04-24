@@ -177,6 +177,20 @@ def test_master_agent_pieces() -> None:
     print("[OK] master-agent helpers")
 
 
+def test_macro_filter_multiasset() -> None:
+    from agents import macro_filter as mf
+    btc = mf.run("BTC")
+    assert btc.kind == "MVRV"
+    assert btc.direction in ("bullish", "bearish", "none")
+    for a in ("ETH", "SOL"):
+        s = mf.run(a)
+        assert s.kind == "MayerMultiple"
+        assert s.value > 0
+        assert s.direction in ("bullish", "bearish", "none")
+        assert s.regime in ("Deep Value", "Discount", "Neutral", "Hot", "Euphoria")
+    print(f"[OK] macro_filter multi-asset (BTC={btc.regime}, ETH/SOL via Mayer)")
+
+
 def main() -> int:
     test_mvrv_agent_live()
     test_indicators_synthetic()
@@ -185,6 +199,7 @@ def main() -> int:
     test_fvg_ob_synthetic()
     test_futures_classify()
     test_liq_heatmap()
+    test_macro_filter_multiasset()
     print("\nAll smoke tests passed.")
     return 0
 
