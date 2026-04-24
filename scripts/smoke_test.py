@@ -177,6 +177,38 @@ def test_master_agent_pieces() -> None:
     print("[OK] master-agent helpers")
 
 
+def test_paper_trader_exits() -> None:
+    """Verify paper_trader SL/TP detection on synthetic future bars."""
+    from agents.paper_trader import OpenPosition, _compute_exit, _pnl
+    from agents.data_sources import Candle
+
+    # SL hit for long
+    pos = OpenPosition(asset="BTC", direction="long", entry=100.0, stop=95.0,
+                       tp1=110.0, tp2=120.0, open_ts=0, size_pct=1.0,
+                       confluence_score=8)
+    bars = [Candle(1, 100, 102, 98, 101, 1), Candle(2, 101, 103, 94, 96, 1)]
+    hit = _compute_exit(pos, bars, start_ts=1)
+    assert hit is not None and hit[2] == "sl" and hit[1] == 95.0
+    pnl, r = _pnl(pos, 95.0)
+    assert round(r, 2) == -1.00, r
+
+    # TP1 hit for long
+    bars = [Candle(1, 100, 105, 99, 104, 1), Candle(2, 104, 112, 103, 111, 1)]
+    hit = _compute_exit(pos, bars, start_ts=1)
+    assert hit is not None and hit[2] == "tp1" and hit[1] == 110.0
+    _, r = _pnl(pos, 110.0)
+    assert round(r, 2) == 2.00, r  # 10/5
+
+    # SL hit for short
+    sp = OpenPosition(asset="BTC", direction="short", entry=100.0, stop=105.0,
+                      tp1=90.0, tp2=80.0, open_ts=0, size_pct=1.0,
+                      confluence_score=8)
+    bars = [Candle(1, 100, 106, 99, 105.5, 1)]
+    hit = _compute_exit(sp, bars, start_ts=1)
+    assert hit is not None and hit[2] == "sl" and hit[1] == 105.0
+    print("[OK] paper trader exits (SL/TP1 long+short)")
+
+
 def main() -> int:
     test_mvrv_agent_live()
     test_indicators_synthetic()
@@ -185,6 +217,7 @@ def main() -> int:
     test_fvg_ob_synthetic()
     test_futures_classify()
     test_liq_heatmap()
+    test_paper_trader_exits()
     print("\nAll smoke tests passed.")
     return 0
 
