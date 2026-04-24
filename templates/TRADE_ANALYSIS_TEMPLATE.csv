@@ -1,0 +1,3 @@
+Date,Symbol,Market,Direction,Bias_HTF,POI_Type,Liquidity_Sweep,CHoCH_LTF,Entry,SL,TP1,TP2,RR,Confluence_Score,Position_Size,Risk_Percent,Risk_Amount,Kill_Zone,Decision,Result,PnL,Emotion_Before_1_10,Checklist_Violation,Lesson_Learned
+2026-04-24,BTCUSDT,Crypto Futures,Short,Bearish,Bearish OB H4,EQH swept,Yes,79200,79650,78000,77000,2.7,6,0.015,1,150,NY,TRADE,Pending,Pending,7,None,
+2026-04-24,CII,CK VN,Long,Bearish,Discount D1,None,No,17500,16800,19000,20500,2.1,3,0,1,0,ATC,NO-TRADE,N/A,N/A,5,Confluence 3/8,Cho Discount + sweep EQL moi vao

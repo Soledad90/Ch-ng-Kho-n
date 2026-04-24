@@ -238,3 +238,76 @@ def volume_profile(highs: Sequence[float], lows: Sequence[float],
     val = bin_list[left][0]
     vah = bin_list[right][1]
     return {"bins": bin_list, "poc": poc, "vah": vah, "val": val}
+
+
+# ---------- SMC/ICT: Fair-Value Gap & Order Block --------------------------
+
+def detect_fvg(highs, lows, closes, lookback: int = 120) -> list[dict]:
+    """Detect 3-candle Fair Value Gaps per ICT definition.
+
+    - **Bullish FVG**: candle[i-2].high < candle[i].low AND candle[i-1] is up.
+      Gap range = (candle[i-2].high, candle[i].low).
+    - **Bearish FVG**: candle[i-2].low > candle[i].high AND candle[i-1] is down.
+      Gap range = (candle[i].high, candle[i-2].low).
+
+    Returns list of {idx, kind, lo, hi, mitigated} ordered oldest -> newest over
+    last `lookback` candles. `mitigated=True` if any subsequent candle's wick
+    re-entered the gap (50% midpoint).
+    """
+    n = len(closes)
+    start = max(2, n - lookback)
+    fvgs: list[dict] = []
+    for i in range(start, n):
+        # bullish: gap + middle candle must be up (close[i-1] > close[i-2])
+        if highs[i - 2] < lows[i] and closes[i - 1] > closes[i - 2]:
+            lo, hi = highs[i - 2], lows[i]
+            mid = (lo + hi) / 2
+            mitigated = any(lows[j] <= mid for j in range(i + 1, n))
+            fvgs.append({"idx": i, "kind": "bullish", "lo": lo, "hi": hi,
+                         "mitigated": mitigated})
+        # bearish: gap + middle candle must be down
+        if lows[i - 2] > highs[i] and closes[i - 1] < closes[i - 2]:
+            lo, hi = highs[i], lows[i - 2]
+            mid = (lo + hi) / 2
+            mitigated = any(highs[j] >= mid for j in range(i + 1, n))
+            fvgs.append({"idx": i, "kind": "bearish", "lo": lo, "hi": hi,
+                         "mitigated": mitigated})
+    return fvgs
+
+
+def detect_order_blocks(opens, highs, lows, closes, lookback: int = 120,
+                         impulse_atr_mult: float = 1.5) -> list[dict]:
+    """Detect Order Blocks: last opposing candle before an impulsive leg.
+
+    An "impulsive" candle is one whose body >= `impulse_atr_mult` * ATR(14).
+    The OB is the candle immediately before it whose body direction is opposite.
+
+    Returns list of {idx, kind, lo, hi, mitigated} for the last `lookback`
+    candles. `kind='bullish'` = demand OB (last red before green impulse).
+    `mitigated=True` if price later traded back into the OB body.
+    """
+    atr_vals = atr(highs, lows, closes, 14)
+    n = len(closes)
+    start = max(1, n - lookback)
+    obs: list[dict] = []
+    for i in range(start, n):
+        if atr_vals[i] is None:
+            continue
+        body = abs(closes[i] - opens[i])
+        if body < impulse_atr_mult * atr_vals[i]:
+            continue
+        # impulsive candle
+        impulsive_up = closes[i] > opens[i]
+        prev = i - 1
+        prev_up = closes[prev] > opens[prev]
+        if impulsive_up and not prev_up:
+            lo, hi = min(opens[prev], closes[prev]), max(opens[prev], closes[prev])
+            mitigated = any(lows[j] <= (lo + hi) / 2 for j in range(i + 1, n))
+            obs.append({"idx": prev, "kind": "bullish", "lo": lo, "hi": hi,
+                        "mitigated": mitigated})
+        elif (not impulsive_up) and prev_up:
+            lo, hi = min(opens[prev], closes[prev]), max(opens[prev], closes[prev])
+            mitigated = any(highs[j] >= (lo + hi) / 2 for j in range(i + 1, n))
+            obs.append({"idx": prev, "kind": "bearish", "lo": lo, "hi": hi,
+                        "mitigated": mitigated})
+    return obs
