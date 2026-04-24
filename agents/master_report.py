@@ -32,7 +32,7 @@ def to_markdown(s: MasterSignal) -> str:
 
     return f"""# BTC/USDT — {s.as_of}
 
-## Decision: {decision_badge}  (Confluence {s.confluence_score}/8)
+## Decision: {decision_badge}  (Confluence {s.confluence_score}/12)
 
 **Scenario A:** {s.scenario_a}
 **Invalidation:** {s.invalidation}

@@ -120,7 +120,8 @@ def liquidation_heatmap(events: list[LiquidationEvent], bins: int = 40) -> dict:
     magnet) and poc_short similar for upside magnet.
     """
     if not events:
-        return {"bins": [], "poc_long": None, "poc_short": None, "total": 0}
+        return {"bins": [], "poc_long": None, "poc_short": None,
+                "total": 0, "total_long": 0.0, "total_short": 0.0}
     prices = [e.price for e in events]
     lo, hi = min(prices), max(prices)
     if hi <= lo:

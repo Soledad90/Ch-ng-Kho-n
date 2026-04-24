@@ -1,6 +1,6 @@
 # BTC/USDT — 2026-04-24 07:30 UTC
 
-## Decision: NO_TRADE  (Confluence 2/8)
+## Decision: NO_TRADE  (Confluence 2/12)
 
 **Scenario A:** No valid setup
 **Invalidation:** n/a
@@ -50,7 +50,7 @@
 
 | Field | Value |
 |---|---|
-| Funding rate (per 8h) | -0.13 bps → **neutral** |
+| Funding rate (per 8h) | -0.12 bps → **neutral** |
 | OI trend (12x1h) | flat (0.49%) |
 | Long/Short account ratio | 0.78 |
 | Liq magnet below (longs rekt) | $77,156.79 |
@@ -65,11 +65,11 @@
 | 2 | POI valid | FAIL | current_in=mid |
 | 3 | Liquidity Sweep | FAIL | sweep=none |
 | 4 | CHoCH LTF (M15) | FAIL | choch=none |
-| 5 | Fibonacci OTE | FAIL | price=77745.20 in [0.00, 0.00] |
+| 5 | Fibonacci OTE | FAIL | price=77674.70 in [0.00, 0.00] |
 | 6 | Volume Profile (POC proximity) | PASS | poc=77767.54999999999 |
-| 7 | Momentum (RSI + MACD hist) | FAIL | rsi=43.5, macd_hist=4.478477266027056 |
+| 7 | Momentum (RSI + MACD hist) | FAIL | rsi=40.8, macd_hist=-0.020668033122618112 |
 | 8 | Kill Zone | PASS | London 07-10 UTC or NY 12-15 UTC |
-| 9 | Funding Rate (contrarian) | FAIL | rate=-0.13 bps/8h, regime=neutral |
+| 9 | Funding Rate (contrarian) | FAIL | rate=-0.12 bps/8h, regime=neutral |
 | 10 | Open Interest trend | FAIL | oi_trend=flat, change=0.49% |
 | 11 | OB/FVG zone (3-candle) | FAIL | no unmitigated OB/FVG found |
 | 12 | Liquidation magnet (target) | FAIL | no magnet |
@@ -92,10 +92,10 @@
 
 | TF | Close | EMA20 | EMA50 | EMA200 | RSI | MACD-hist | ATR | Trend |
 |---|---|---|---|---|---|---|---|---|
-| D1 | $77,745.20 | $74,468.90 | $72,783.71 | $82,561.06 | 63.4 | 373.14 | $2,433.43 | range |
-| H4 | $77,745.20 | $77,476.59 | $76,281.57 | $72,841.99 | 54.2 | -78.42 | $974.70 | up |
-| H1 | $77,745.20 | $77,979.01 | $77,803.21 | $76,251.81 | 45.4 | -40.41 | $423.89 | range |
-| M15 | $77,745.20 | $77,851.62 | $77,937.29 | $77,780.98 | 43.5 | 4.48 | $149.81 | range |
+| D1 | $77,674.70 | $74,462.19 | $72,780.95 | $82,560.36 | 63.1 | 368.64 | $2,433.43 | range |
+| H4 | $77,674.70 | $77,469.87 | $76,278.80 | $72,841.29 | 53.7 | -82.92 | $974.70 | up |
+| H1 | $77,674.70 | $77,972.30 | $77,800.45 | $76,251.11 | 44.3 | -44.91 | $424.83 | range |
+| M15 | $77,674.70 | $77,844.91 | $77,934.53 | $77,780.27 | 40.8 | -0.02 | $153.96 | range |
 
 ---
 
