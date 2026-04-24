@@ -293,7 +293,13 @@ def run_backtest(
     if len(candles) < 250:
         raise RuntimeError(f"Need >=250 daily bars, got {len(candles)}")
     mvrv_map = _load_mvrv_map(Path(__file__).resolve().parent.parent / "data" / "mvrv_btc.csv")
-    mvrv_hist = sorted({v[0] for v in mvrv_map.values()})
+    # IMPORTANT: keep this a list, NOT a set. Percentiles are a
+    # frequency distribution — deduplicating unique MVRV values (~429
+    # of them vs 5562 observations) skews the histogram towards rare
+    # extremes and misclassifies ~47% of bars (e.g. MVRV=2.6 becomes
+    # "Neutral"/direction=none under a set but is "Hot"/bearish under
+    # the true CSV frequency).
+    mvrv_hist = sorted(v[0] for v in mvrv_map.values())
 
     trades: list[BacktestTrade] = []
     i = 200
