@@ -1,0 +1,96 @@
+{
+  "mvrv": {
+    "as_of": "2026-04-24",
+    "mvrv": 1.44,
+    "realized_price": 54243.4,
+    "btc_price": 77921.34,
+    "percentile": 35.4,
+    "z_score": -1.03,
+    "regime": "Discount",
+    "size_multiplier": 1.15,
+    "signal": "Above-baseline buy -- mild optimism, still cheap",
+    "direction": "bullish"
+  },
+  "ta": {
+    "as_of": "2026-04-24",
+    "source": "kraken",
+    "timeframe": "1d",
+    "close": 77803.5,
+    "ema20": 74474.45289494279,
+    "ema50": 72785.99610549625,
+    "ema200": 82561.63869433277,
+    "rsi14": 63.61273271062014,
+    "macd": 2075.520871874265,
+    "macd_signal": 1698.663325053243,
+    "macd_hist": 376.8575468210222,
+    "atr14": 2433.425336946488,
+    "ichimoku_tenkan": 76400.65,
+    "ichimoku_kijun": 72589.45,
+    "ichimoku_span_a": 74495.04999999999,
+    "ichimoku_span_b": 72225.35,
+    "trend": "range",
+    "momentum": "strong_up",
+    "cloud_state": "above",
+    "swing_high": 90438.3,
+    "swing_low": 60500.0,
+    "fib": {
+      "0.000": 90438.3,
+      "0.236": 83372.8612,
+      "0.382": 79001.8694,
+      "0.500": 75469.15,
+      "0.618": 71936.43059999999,
+      "0.786": 66906.7962,
+      "1.000": 60500.0
+    },
+    "supports": [
+      63427.5,
+      65376.875,
+      66744.2,
+      74409.1,
+      76615.7
+    ],
+    "resistances": [
+      86401.0,
+      88896.35,
+      90552.6,
+      94736.85,
+      95837.7
+    ],
+    "vp_poc": 68638.92916666667,
+    "vp_vah": 90730.30833333333,
+    "vp_val": 62825.40833333333,
+    "direction": "bullish"
+  },
+  "plan": {
+    "action": "STRONG_BUY",
+    "confidence": 0.9,
+    "entry_zone": [
+      69855.64183513992,
+      71936.43059999999
+    ],
+    "tranches": [
+      [
+        70896.03621756996,
+        0.4
+      ],
+      [
+        69855.64183513992,
+        0.35
+      ],
+      [
+        76615.7,
+        0.25
+      ]
+    ],
+    "stop": 68638.92916666667,
+    "tp1": 86401.0,
+    "tp2": 91267.85067389297,
+    "rr": 4.35,
+    "size_multiplier": 1.15,
+    "rationale": [
+      "MVRV=1.44 (Discount, pctile 35.4%, z=-1.03)",
+      "TA trend=range, momentum=strong_up, cloud=above",
+      "Action=STRONG_BUY, RR(TP1)=4.35, size x1.15"
+    ]
+  }
+}
