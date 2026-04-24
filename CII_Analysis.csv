@@ -7,3 +7,11 @@ Bull Case,Price rebounds to 25,000 VND if infrastructure policies support
 Bear Case,Price drops to 15,000 VND due to debt concerns
 Final Decision,TRADE
 Risk Level,High
+MVRV Regime,Discount
+MVRV Value,1.44
+MVRV Percentile,35.4%
+MVRV Size Multiplier,1.15x
+MVRV-Adjusted Capital Allocation,"Month 04: 3,450,000 VND; Month 05: 4,025,000 VND; Month 06: 4,025,000 VND"
+MVRV-Adjusted Total (90d),"11,500,000 VND"
+MVRV Macro Signal,"Above-baseline buy -- mild optimism, still cheap"
+MVRV Data As Of,2026-04-24
