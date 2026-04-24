@@ -177,6 +177,23 @@ def test_master_agent_pieces() -> None:
     print("[OK] master-agent helpers")
 
 
+def test_backtest_live() -> None:
+    from agents.backtest import run_backtest
+    stats, trades = run_backtest(
+        max_hold=10, confluence_min=6, rr_min=3.0,  # tight gate -> likely 0-few trades
+        out_dir=None, cooldown_bars=5,
+    )
+    # sanity: object types correct, no trade has inconsistent stats
+    assert stats.n_trades == len(trades)
+    for t in trades:
+        assert t.r_multiple != 0
+        if t.direction == "long":
+            assert t.stop < t.entry < t.tp1
+        else:
+            assert t.stop > t.entry > t.tp1
+    print(f"[OK] backtest engine (n={stats.n_trades}, win_rate={stats.win_rate}%)")
+
+
 def main() -> int:
     test_mvrv_agent_live()
     test_indicators_synthetic()
@@ -185,6 +202,7 @@ def main() -> int:
     test_fvg_ob_synthetic()
     test_futures_classify()
     test_liq_heatmap()
+    test_backtest_live()
     print("\nAll smoke tests passed.")
     return 0
 
