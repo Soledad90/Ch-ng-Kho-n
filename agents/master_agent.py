@@ -323,10 +323,12 @@ def _classify_funding(rate: float) -> str:
 
 
 def _build_futures() -> Futures:
+    funding_ok = True
     try:
         cur_rate, _fhist = fut.fetch_funding_rate(limit=8)
     except Exception:
         cur_rate = 0.0
+        funding_ok = False
     try:
         oi = fut.fetch_open_interest("1H", limit=24)
     except Exception:
@@ -358,7 +360,7 @@ def _build_futures() -> Futures:
 
     return Futures(
         funding_rate=cur_rate,
-        funding_regime=_classify_funding(cur_rate),
+        funding_regime=_classify_funding(cur_rate) if funding_ok else "unknown",
         oi_trend=oi_trend,
         oi_change_pct=round(oi_change, 2) if oi_change is not None else None,
         ls_ratio=lsr[-1][1] if lsr else None,
