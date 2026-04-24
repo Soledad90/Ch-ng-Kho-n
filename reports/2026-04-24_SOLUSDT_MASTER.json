@@ -1,0 +1,197 @@
+{
+  "as_of": "2026-04-24 09:15 UTC",
+  "source": "kraken",
+  "mvrv_regime": "Deep Value",
+  "mvrv_direction": "bullish",
+  "mvrv_value": 0.6941,
+  "bias_w1": "down",
+  "bias_d1": "down",
+  "bias_h4": "range",
+  "bias_htf": "bearish",
+  "bias_reason": "D1=down, H4=range, W1=down; MayerMultiple bullish (Deep Value) \u2014 macro disagrees",
+  "poi": {
+    "premium_zone": [
+      97.78,
+      128.16
+    ],
+    "discount_zone": [
+      67.4,
+      97.78
+    ],
+    "current_in": "discount",
+    "ote_long": [
+      80.1596,
+      90.61032
+    ],
+    "ote_short": [
+      104.94968,
+      115.4004
+    ],
+    "nearest_support": 79.552,
+    "nearest_resistance": 116.008
+  },
+  "trigger": {
+    "sweep": "none",
+    "sweep_price": null,
+    "choch": "none",
+    "choch_price": null,
+    "nearest_fvg_long": null,
+    "nearest_fvg_short": [
+      85.24,
+      85.39
+    ],
+    "nearest_ob_long": [
+      84.78,
+      85.06
+    ],
+    "nearest_ob_short": null
+  },
+  "futures": {
+    "funding_rate": 2.99566790573e-05,
+    "funding_regime": "neutral",
+    "oi_trend": "rising",
+    "oi_change_pct": 1.72,
+    "ls_ratio": 2.53,
+    "liq_poc_long": 85.40125,
+    "liq_poc_short": 86.56375,
+    "liq_total_long": 6916.169999999999,
+    "liq_total_short": 3630.14
+  },
+  "confluence": [
+    {
+      "name": "Bias HTF (D1/H4)",
+      "passed": false,
+      "note": "bias=bearish, want=n/a (no direction)"
+    },
+    {
+      "name": "POI valid",
+      "passed": false,
+      "note": "current_in=discount"
+    },
+    {
+      "name": "Liquidity Sweep",
+      "passed": false,
+      "note": "sweep=none"
+    },
+    {
+      "name": "CHoCH LTF (M15)",
+      "passed": false,
+      "note": "choch=none"
+    },
+    {
+      "name": "Fibonacci OTE",
+      "passed": false,
+      "note": "price=85.13 in [0.00, 0.00]"
+    },
+    {
+      "name": "Volume Profile (POC proximity)",
+      "passed": true,
+      "note": "poc=85.84729166666668"
+    },
+    {
+      "name": "Momentum (RSI + MACD hist)",
+      "passed": false,
+      "note": "rsi=35.9, macd_hist=-0.023928541420532787"
+    },
+    {
+      "name": "Kill Zone",
+      "passed": true,
+      "note": "London 07-10 UTC or NY 12-15 UTC"
+    },
+    {
+      "name": "Funding Rate (contrarian)",
+      "passed": false,
+      "note": "rate=0.30 bps/8h, regime=neutral"
+    },
+    {
+      "name": "Open Interest trend",
+      "passed": false,
+      "note": "oi_trend=rising, change=1.72%"
+    },
+    {
+      "name": "OB/FVG zone (3-candle)",
+      "passed": false,
+      "note": "no unmitigated OB/FVG found"
+    },
+    {
+      "name": "Liquidation magnet (target)",
+      "passed": false,
+      "note": "no magnet"
+    }
+  ],
+  "confluence_score": 2,
+  "direction": "none",
+  "entry": null,
+  "stop": null,
+  "tp1": null,
+  "tp2": null,
+  "rr": null,
+  "risk_pct": 1.0,
+  "size_hint": "n/a",
+  "scenario_a": "No valid setup",
+  "invalidation": "n/a",
+  "decision": "NO_TRADE",
+  "hard_stops": [],
+  "d1": {
+    "tf": "1d",
+    "close": 85.13,
+    "ema20": 85.31047106942398,
+    "ema50": 87.0125363743895,
+    "ema200": 116.04790790086474,
+    "rsi14": 49.60071583330182,
+    "macd_hist": 0.19193215083106738,
+    "atr14": 3.7201462995820114,
+    "trend": "down",
+    "swing_high": 128.16,
+    "swing_low": 67.4,
+    "mid": 97.78,
+    "poc": 87.49583333333334
+  },
+  "h4": {
+    "tf": "4h",
+    "close": 85.13,
+    "ema20": 86.06362911604043,
+    "ema50": 85.90599176415141,
+    "ema200": 85.46927683915318,
+    "rsi14": 43.72664538101614,
+    "macd_hist": -0.17329498247348116,
+    "atr14": 1.175126840378193,
+    "trend": "range",
+    "swing_high": 90.75,
+    "swing_low": 81.32,
+    "mid": 86.035,
+    "poc": 85.39791666666667
+  },
+  "h1": {
+    "tf": "1h",
+    "close": 85.13,
+    "ema20": 85.72888425093512,
+    "ema50": 86.05943845707073,
+    "ema200": 85.93335370831076,
+    "rsi14": 38.133862806334065,
+    "macd_hist": -0.029119687473200984,
+    "atr14": 0.49321382851807394,
+    "trend": "range",
+    "swing_high": 89.34,
+    "swing_low": 84.35,
+    "mid": 86.845,
+    "poc": 85.69312500000001
+  },
+  "m15": {
+    "tf": "15m",
+    "close": 85.13,
+    "ema20": 85.46580205797264,
+    "ema50": 85.6331675948529,
+    "ema200": 86.07485870292362,
+    "rsi14": 35.877734145123796,
+    "macd_hist": -0.023928541420532787,
+    "atr14": 0.21749508966134506,
+    "trend": "down",
+    "swing_high": 86.63,
+    "swing_low": 84.55,
+    "mid": 85.59,
+    "poc": 85.84729166666668
+  },
+  "asset": "SOL",
+  "macro_kind": "MayerMultiple"
+}

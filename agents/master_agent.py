@@ -17,9 +17,10 @@ from dataclasses import dataclass, field, asdict
 from typing import Literal
 
 from . import indicators as ind
-from . import mvrv_agent
+from . import macro_filter
+from . import mvrv_agent  # re-exported for legacy callers
 from . import futures_data as fut
-from .data_sources import Candle, fetch_ohlc
+from .data_sources import Asset, Candle, fetch_ohlc
 
 
 Direction = Literal["long", "short", "none"]
@@ -123,6 +124,8 @@ class MasterSignal:
     h4: TFSnapshot
     h1: TFSnapshot
     m15: TFSnapshot
+    asset: str = "BTC"                     # BTC | ETH | SOL
+    macro_kind: str = "MVRV"               # "MVRV" for BTC, "MayerMultiple" for ETH/SOL
 
     def to_dict(self) -> dict:
         return _as_json(asdict(self))
@@ -322,23 +325,23 @@ def _classify_funding(rate: float) -> str:
     return "neutral"
 
 
-def _build_futures() -> Futures:
+def _build_futures(asset: str = "BTC") -> Futures:
     funding_ok = True
     try:
-        cur_rate, _fhist = fut.fetch_funding_rate(limit=8)
+        cur_rate, _fhist = fut.fetch_funding_rate(limit=8, asset=asset)  # type: ignore[arg-type]
     except Exception:
         cur_rate = 0.0
         funding_ok = False
     try:
-        oi = fut.fetch_open_interest("1H", limit=24)
+        oi = fut.fetch_open_interest("1H", limit=24, asset=asset)  # type: ignore[arg-type]
     except Exception:
         oi = []
     try:
-        lsr = fut.fetch_long_short_ratio("1H", limit=24)
+        lsr = fut.fetch_long_short_ratio("1H", limit=24, asset=asset)  # type: ignore[arg-type]
     except Exception:
         lsr = []
     try:
-        liq = fut.fetch_liquidations(limit=100)
+        liq = fut.fetch_liquidations(limit=100, asset=asset)  # type: ignore[arg-type]
         heat = fut.liquidation_heatmap(liq, bins=40)
     except Exception:
         heat = {"poc_long": None, "poc_short": None,
@@ -533,23 +536,26 @@ def _build_execution(direction: Direction, poi: POI, m15: TFSnapshot,
 # Public entry point
 # -------------------------------------------------------------------------
 
-def run(risk_pct: float = 1.0) -> MasterSignal:
+def run(risk_pct: float = 1.0, asset: Asset = "BTC") -> MasterSignal:
     """Run the Master Data Agent end-to-end.
 
     Parameters
     ----------
     risk_pct : float
         Per-trade risk expressed in % of account equity (default 1%).
+    asset : {"BTC", "ETH", "SOL"}
+        Which crypto asset to analyse. BTC uses real MVRV (bitbo.io CSV);
+        ETH/SOL use Mayer Multiple (price/SMA200) as macro proxy.
     """
     hard_stops: list[str] = []
     if risk_pct > 2.0:
         hard_stops.append("Risk per trade > 2% — hard-stop per AGENT.md Rule #3")
 
     # Data layer (multi-TF)
-    c_d1, src = fetch_ohlc("1d")
-    c_h4, _ = fetch_ohlc("4h")
-    c_h1, _ = fetch_ohlc("1h")
-    c_m15, _ = fetch_ohlc("15m")
+    c_d1, src = fetch_ohlc("1d", asset)
+    c_h4, _ = fetch_ohlc("4h", asset)
+    c_h1, _ = fetch_ohlc("1h", asset)
+    c_m15, _ = fetch_ohlc("15m", asset)
 
     d1 = _snap("1d", c_d1)
     h4 = _snap("4h", c_h4)
@@ -575,13 +581,16 @@ def run(risk_pct: float = 1.0) -> MasterSignal:
     # Layer 1: Bias
     bias, bias_reason = _bias_from_snaps(d1, h4, w1_trend)
 
-    # MVRV macro overlay
-    mv = mvrv_agent.run()
-    if mv.direction == "bullish" and bias == "bearish":
-        bias_reason += f"; MVRV bullish ({mv.regime}, z={mv.z_score}) — macro disagrees"
-    if mv.direction == "bearish" and bias == "bullish":
-        bias_reason += f"; MVRV bearish ({mv.regime}, z={mv.z_score}) — macro disagrees"
-        hard_stops.append("HTF bullish but MVRV bearish — top risk per AGENT.md Rule #2")
+    # Macro overlay: BTC -> MVRV, ETH/SOL -> Mayer Multiple
+    macro = macro_filter.run(asset)
+    if macro.direction == "bullish" and bias == "bearish":
+        bias_reason += f"; {macro.kind} bullish ({macro.regime}) — macro disagrees"
+    if macro.direction == "bearish" and bias == "bullish":
+        bias_reason += f"; {macro.kind} bearish ({macro.regime}) — macro disagrees"
+        hard_stops.append(
+            f"HTF bullish but {macro.kind} bearish ({macro.regime}) — "
+            f"top risk per AGENT.md Rule #2"
+        )
 
     # Layer 2: POI
     poi = _poi(d1)
@@ -598,7 +607,7 @@ def run(risk_pct: float = 1.0) -> MasterSignal:
     )
 
     # Futures microstructure (funding, OI, L/S, liquidations)
-    futures = _build_futures()
+    futures = _build_futures(asset)
 
     # Direction
     direction = _decide_direction(bias, poi, trig)
@@ -651,8 +660,8 @@ def run(risk_pct: float = 1.0) -> MasterSignal:
 
     return MasterSignal(
         as_of=time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime(c_m15[-1].ts)),
-        source=src,
-        mvrv_regime=mv.regime, mvrv_direction=mv.direction, mvrv_value=mv.mvrv,
+        source=src, asset=asset, macro_kind=macro.kind,
+        mvrv_regime=macro.regime, mvrv_direction=macro.direction, mvrv_value=macro.value,
         bias_w1=w1_trend, bias_d1=d1.trend, bias_h4=h4.trend,
         bias_htf=bias, bias_reason=bias_reason,
         poi=poi, trigger=trig, futures=futures,

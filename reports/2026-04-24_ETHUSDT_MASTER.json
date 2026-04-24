@@ -1,0 +1,194 @@
+{
+  "as_of": "2026-04-24 09:15 UTC",
+  "source": "kraken",
+  "mvrv_regime": "Discount",
+  "mvrv_direction": "bullish",
+  "mvrv_value": 0.824,
+  "bias_w1": "down",
+  "bias_d1": "range",
+  "bias_h4": "range",
+  "bias_htf": "range",
+  "bias_reason": "D1=range, H4=range, W1=down \u2014 mixed",
+  "poi": {
+    "premium_zone": [
+      2392.46,
+      3040.36
+    ],
+    "discount_zone": [
+      1744.56,
+      2392.46
+    ],
+    "current_in": "mid",
+    "ote_long": [
+      2016.6779999999999,
+      2239.5556
+    ],
+    "ote_short": [
+      2545.3644,
+      2768.242
+    ],
+    "nearest_support": 2003.72,
+    "nearest_resistance": 2781.2000000000003
+  },
+  "trigger": {
+    "sweep": "none",
+    "sweep_price": null,
+    "choch": "none",
+    "choch_price": null,
+    "nearest_fvg_long": null,
+    "nearest_fvg_short": [
+      2310.88,
+      2313.81
+    ],
+    "nearest_ob_long": null,
+    "nearest_ob_short": null
+  },
+  "futures": {
+    "funding_rate": -4.96234103188e-05,
+    "funding_regime": "neutral",
+    "oi_trend": "rising",
+    "oi_change_pct": 3.37,
+    "ls_ratio": 1.73,
+    "liq_poc_long": 2298.176875,
+    "liq_poc_short": 2330.268625,
+    "liq_total_long": 44590.37,
+    "liq_total_short": 17336.16
+  },
+  "confluence": [
+    {
+      "name": "Bias HTF (D1/H4)",
+      "passed": false,
+      "note": "bias=range, want=n/a (no direction)"
+    },
+    {
+      "name": "POI valid",
+      "passed": false,
+      "note": "current_in=mid"
+    },
+    {
+      "name": "Liquidity Sweep",
+      "passed": false,
+      "note": "sweep=none"
+    },
+    {
+      "name": "CHoCH LTF (M15)",
+      "passed": false,
+      "note": "choch=none"
+    },
+    {
+      "name": "Fibonacci OTE",
+      "passed": false,
+      "note": "price=2308.01 in [0.00, 0.00]"
+    },
+    {
+      "name": "Volume Profile (POC proximity)",
+      "passed": false,
+      "note": "poc=2398.3175"
+    },
+    {
+      "name": "Momentum (RSI + MACD hist)",
+      "passed": false,
+      "note": "rsi=42.9, macd_hist=0.23087691271700184"
+    },
+    {
+      "name": "Kill Zone",
+      "passed": true,
+      "note": "London 07-10 UTC or NY 12-15 UTC"
+    },
+    {
+      "name": "Funding Rate (contrarian)",
+      "passed": false,
+      "note": "rate=-0.50 bps/8h, regime=neutral"
+    },
+    {
+      "name": "Open Interest trend",
+      "passed": false,
+      "note": "oi_trend=rising, change=3.37%"
+    },
+    {
+      "name": "OB/FVG zone (3-candle)",
+      "passed": false,
+      "note": "no unmitigated OB/FVG found"
+    },
+    {
+      "name": "Liquidation magnet (target)",
+      "passed": false,
+      "note": "no magnet"
+    }
+  ],
+  "confluence_score": 1,
+  "direction": "none",
+  "entry": null,
+  "stop": null,
+  "tp1": null,
+  "tp2": null,
+  "rr": null,
+  "risk_pct": 1.0,
+  "size_hint": "n/a",
+  "scenario_a": "No valid setup",
+  "invalidation": "n/a",
+  "decision": "NO_TRADE",
+  "hard_stops": [],
+  "d1": {
+    "tf": "1d",
+    "close": 2308.01,
+    "ema20": 2280.04017860012,
+    "ema50": 2229.4792704374963,
+    "ema200": 2634.5865072820143,
+    "rsi14": 53.966772416549155,
+    "macd_hist": -3.487727495557479,
+    "atr14": 98.46247314536265,
+    "trend": "range",
+    "swing_high": 3040.36,
+    "swing_low": 1744.56,
+    "mid": 2392.46,
+    "poc": 2110.311458333333
+  },
+  "h4": {
+    "tf": "4h",
+    "close": 2308.01,
+    "ema20": 2333.9932079652544,
+    "ema50": 2327.4680306969044,
+    "ema200": 2233.1009685837153,
+    "rsi14": 42.625579944223915,
+    "macd_hist": -6.355813294036077,
+    "atr14": 33.9453106274111,
+    "trend": "range",
+    "swing_high": 2465.91,
+    "swing_low": 2157.17,
+    "mid": 2311.54,
+    "poc": 2057.9772916666666
+  },
+  "h1": {
+    "tf": "1h",
+    "close": 2308.01,
+    "ema20": 2321.239219593656,
+    "ema50": 2333.8235409649687,
+    "ema200": 2328.0221105338987,
+    "rsi14": 40.05948561690146,
+    "macd_hist": 0.24146886803971412,
+    "atr14": 14.97106364779741,
+    "trend": "range",
+    "swing_high": 2424.05,
+    "swing_low": 2285.23,
+    "mid": 2354.6400000000003,
+    "poc": 2320.111875
+  },
+  "m15": {
+    "tf": "15m",
+    "close": 2308.01,
+    "ema20": 2312.7325201530816,
+    "ema50": 2317.078412045116,
+    "ema200": 2334.3504435478626,
+    "rsi14": 42.86037509664313,
+    "macd_hist": 0.23087691271700184,
+    "atr14": 6.109053567601829,
+    "trend": "down",
+    "swing_high": 2343.81,
+    "swing_low": 2286.81,
+    "mid": 2315.31,
+    "poc": 2398.3175
+  },
+  "asset": "ETH",
+  "macro_kind": "MayerMultiple"
+}

@@ -11,11 +11,24 @@ import urllib.request
 from dataclasses import dataclass
 from typing import Literal
 
-from .data_sources import _http_json
+from .data_sources import _http_json, Asset
 
 
-INST = "BTC-USDT-SWAP"
-ULY = "BTC-USDT"
+_INST_OF = {"BTC": "BTC-USDT-SWAP", "ETH": "ETH-USDT-SWAP", "SOL": "SOL-USDT-SWAP"}
+_ULY_OF = {"BTC": "BTC-USDT", "ETH": "ETH-USDT", "SOL": "SOL-USDT"}
+
+
+def _inst(asset: Asset) -> str:
+    return _INST_OF.get(asset, "BTC-USDT-SWAP")
+
+
+def _uly(asset: Asset) -> str:
+    return _ULY_OF.get(asset, "BTC-USDT")
+
+
+# Backwards-compat module-level constants (BTC) — kept for the __main__ block.
+INST = _INST_OF["BTC"]
+ULY = _ULY_OF["BTC"]
 
 
 @dataclass
@@ -42,13 +55,14 @@ class LiquidationEvent:
 # Funding Rate
 # -------------------------------------------------------------------------
 
-def fetch_funding_rate(limit: int = 20) -> tuple[float, list[FundingPoint]]:
+def fetch_funding_rate(limit: int = 20, asset: Asset = "BTC") -> tuple[float, list[FundingPoint]]:
     """Return (current_rate_per_period, history_list). Rate is the 8h funding."""
-    cur = _http_json(f"https://www.okx.com/api/v5/public/funding-rate?instId={INST}")
+    inst = _inst(asset)
+    cur = _http_json(f"https://www.okx.com/api/v5/public/funding-rate?instId={inst}")
     rate = float(cur["data"][0]["fundingRate"])
     hist = _http_json(
         f"https://www.okx.com/api/v5/public/funding-rate-history"
-        f"?instId={INST}&limit={limit}"
+        f"?instId={inst}&limit={limit}"
     )
     points = [
         FundingPoint(int(d["fundingTime"]) // 1000, float(d["realizedRate"]))
@@ -62,13 +76,14 @@ def fetch_funding_rate(limit: int = 20) -> tuple[float, list[FundingPoint]]:
 # Open Interest
 # -------------------------------------------------------------------------
 
-def fetch_open_interest(period: str = "1H", limit: int = 100) -> list[OIPoint]:
+def fetch_open_interest(period: str = "1H", limit: int = 100,
+                         asset: Asset = "BTC") -> list[OIPoint]:
     """OI history via rubik stat. Returns list oldest -> newest.
 
     OKX returns [ts_ms, oi_usd_total, vol_usd_total]."""
     d = _http_json(
         f"https://www.okx.com/api/v5/rubik/stat/contracts/open-interest-volume"
-        f"?ccy=BTC&period={period}&limit={limit}"
+        f"?ccy={asset}&period={period}&limit={limit}"
     )
     rows = list(d["data"])
     rows.reverse()
@@ -79,11 +94,12 @@ def fetch_open_interest(period: str = "1H", limit: int = 100) -> list[OIPoint]:
 # Long/Short account ratio
 # -------------------------------------------------------------------------
 
-def fetch_long_short_ratio(period: str = "1H", limit: int = 50) -> list[tuple[int, float]]:
+def fetch_long_short_ratio(period: str = "1H", limit: int = 50,
+                            asset: Asset = "BTC") -> list[tuple[int, float]]:
     """Return (ts_s, ratio) pairs, oldest first. ratio = long_accounts / short_accounts."""
     d = _http_json(
         f"https://www.okx.com/api/v5/rubik/stat/contracts/long-short-account-ratio"
-        f"?ccy=BTC&period={period}&limit={limit}"
+        f"?ccy={asset}&period={period}&limit={limit}"
     )
     rows = list(d["data"])
     rows.reverse()
@@ -94,11 +110,11 @@ def fetch_long_short_ratio(period: str = "1H", limit: int = 50) -> list[tuple[in
 # Recent Liquidations
 # -------------------------------------------------------------------------
 
-def fetch_liquidations(limit: int = 100) -> list[LiquidationEvent]:
-    """Last ~100 filled liquidation orders on BTC-USDT swap."""
+def fetch_liquidations(limit: int = 100, asset: Asset = "BTC") -> list[LiquidationEvent]:
+    """Last ~100 filled liquidation orders on <asset>-USDT swap."""
     d = _http_json(
         f"https://www.okx.com/api/v5/public/liquidation-orders"
-        f"?instType=SWAP&uly={ULY}&state=filled&limit={limit}"
+        f"?instType=SWAP&uly={_uly(asset)}&state=filled&limit={limit}"
     )
     out: list[LiquidationEvent] = []
     for pkg in d.get("data", []):

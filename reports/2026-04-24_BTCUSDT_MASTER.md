@@ -1,4 +1,4 @@
-# BTC/USDT — 2026-04-24 07:45 UTC
+# BTC/USDT — 2026-04-24 09:15 UTC
 
 ## Decision: NO_TRADE  (Confluence 2/12)
 
@@ -20,7 +20,7 @@
 | H4 | up |
 
 **Kết luận Bias:** **RANGE** — D1=range, H4=up, W1=down — mixed
-**MVRV overlay:** Discount (value=1.44, direction=bullish)
+**MVRV overlay:** Discount (value=1.4400, direction=bullish)
 
 ## 2. POI & Liquidity
 
@@ -40,22 +40,22 @@
 | Field | Value |
 |---|---|
 | Liquidity sweep | none @ — |
-| CHoCH | none @ — |
+| CHoCH | bearish @ 77,578.30 |
 | Nearest unmitigated bullish FVG (below) | — |
-| Nearest unmitigated bearish FVG (above) | $77,749.30 — $77,791.80 |
-| Nearest unmitigated bullish OB (demand) | $77,193.80 — $77,639.10 |
-| Nearest unmitigated bearish OB (supply) | $78,158.40 — $78,169.10 |
+| Nearest unmitigated bearish FVG (above) | $77,633.90 — $77,778.20 |
+| Nearest unmitigated bullish OB (demand) | — |
+| Nearest unmitigated bearish OB (supply) | $77,778.20 — $77,813.50 |
 
-## 4. Futures Microstructure (OKX)
+## 4. Futures Microstructure (BTC-USDT-SWAP @ OKX)
 
 | Field | Value |
 |---|---|
-| Funding rate (per 8h) | -0.09 bps → **neutral** |
-| OI trend (12x1h) | flat (0.49%) |
-| Long/Short account ratio | 0.78 |
-| Liq magnet below (longs rekt) | $77,156.79 |
+| Funding rate (per 8h) | -0.03 bps → **neutral** |
+| OI trend (12x1h) | flat (-0.21%) |
+| Long/Short account ratio | 0.8 |
+| Liq magnet below (longs rekt) | $77,040.77 |
 | Liq magnet above (shorts rekt) | $78,375.01 |
-| Total liq volume (~100 events) | 10591.7 long / 6758.2 short |
+| Total liq volume (~100 events) | 8950.2 long / 6713.6 short |
 
 ## 5. Confluence Matrix (pass ≥ 7/12)
 
@@ -64,13 +64,13 @@
 | 1 | Bias HTF (D1/H4) | FAIL | bias=range, want=n/a (no direction) |
 | 2 | POI valid | FAIL | current_in=mid |
 | 3 | Liquidity Sweep | FAIL | sweep=none |
-| 4 | CHoCH LTF (M15) | FAIL | choch=none |
-| 5 | Fibonacci OTE | FAIL | price=77735.70 in [0.00, 0.00] |
+| 4 | CHoCH LTF (M15) | FAIL | choch=bearish |
+| 5 | Fibonacci OTE | FAIL | price=77492.30 in [0.00, 0.00] |
 | 6 | Volume Profile (POC proximity) | PASS | poc=77767.54999999999 |
-| 7 | Momentum (RSI + MACD hist) | FAIL | rsi=43.7, macd_hist=1.5220894902159046 |
+| 7 | Momentum (RSI + MACD hist) | FAIL | rsi=37.6, macd_hist=-13.399521394278054 |
 | 8 | Kill Zone | PASS | London 07-10 UTC or NY 12-15 UTC |
-| 9 | Funding Rate (contrarian) | FAIL | rate=-0.09 bps/8h, regime=neutral |
-| 10 | Open Interest trend | FAIL | oi_trend=flat, change=0.49% |
+| 9 | Funding Rate (contrarian) | FAIL | rate=-0.03 bps/8h, regime=neutral |
+| 10 | Open Interest trend | FAIL | oi_trend=flat, change=-0.21% |
 | 11 | OB/FVG zone (3-candle) | FAIL | no unmitigated OB/FVG found |
 | 12 | Liquidation magnet (target) | FAIL | no magnet |
 
@@ -92,10 +92,10 @@
 
 | TF | Close | EMA20 | EMA50 | EMA200 | RSI | MACD-hist | ATR | Trend |
 |---|---|---|---|---|---|---|---|---|
-| D1 | $77,735.70 | $74,468.00 | $72,783.34 | $82,560.96 | 63.4 | 372.53 | $2,433.43 | range |
-| H4 | $77,735.70 | $77,475.68 | $76,281.20 | $72,841.90 | 54.1 | -79.03 | $974.70 | up |
-| H1 | $77,735.70 | $77,978.11 | $77,802.84 | $76,251.72 | 45.3 | -41.01 | $427.13 | range |
-| M15 | $77,735.70 | $77,836.06 | $77,927.41 | $77,780.05 | 43.7 | 1.52 | $148.17 | range |
+| D1 | $77,492.30 | $74,444.81 | $72,773.79 | $82,558.54 | 62.4 | 357.00 | $2,436.75 | range |
+| H4 | $77,492.30 | $77,469.65 | $76,325.36 | $72,887.45 | 52.3 | -120.54 | $946.58 | up |
+| H1 | $77,492.30 | $77,910.77 | $77,787.86 | $76,278.45 | 42.0 | -58.72 | $427.51 | range |
+| M15 | $77,492.30 | $77,762.15 | $77,874.98 | $77,774.80 | 37.6 | -13.40 | $171.82 | range |
 
 ---
 
