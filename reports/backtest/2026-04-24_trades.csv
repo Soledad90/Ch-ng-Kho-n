@@ -1,0 +1,2 @@
+open_date,close_date,direction,entry,stop,tp1,exit_price,exit_reason,bars_held,pnl_pct,r_multiple,confluence_score
+2025-10-26,2025-11-04,long,107754.64,103592.92,120958.48,103592.92,sl,6,-3.862,-1.0,4
