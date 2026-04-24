@@ -213,26 +213,53 @@ def _decide_backtest(candles: list[Candle], mvrv_dir: str) -> tuple[Direction, s
 
 def _walk_forward_exit(
     direction: str, entry: float, stop: float, tp1: float,
-    future: list[Candle], max_hold: int,
-) -> tuple[int, float, str, int]:
-    """Return (close_ts, exit_price, reason, bars_held)."""
-    bars = future[:max_hold]
-    for i, c in enumerate(bars, start=1):
+    future: list[Candle], max_hold: int, fill_window: int,
+) -> tuple[int, float, str, int] | None:
+    """Two-phase fill-then-exit simulator.
+
+    Phase 1 (fill validation): walk forward up to `fill_window` bars and
+    wait for price to actually touch the limit entry level. For a long,
+    that means ``bar.low <= entry``; for a short, ``bar.high >= entry``.
+    If the market gaps away and never pulls back within `fill_window`
+    bars, return ``None`` (no fill, no trade recorded).
+
+    Phase 2 (exit walk): starting from the fill bar, walk up to
+    `max_hold` bars and return on first SL/TP1 touch, or time-out.
+    Pessimistic same-bar rule: if a single bar touches both SL and TP1
+    (including the fill bar), SL wins.
+
+    Returns ``(close_ts, exit_price, reason, bars_held_from_entry)`` or
+    ``None`` when the entry was never filled.
+    """
+    # Phase 1: find the fill bar.
+    fill_idx: int | None = None
+    for i, c in enumerate(future[:fill_window], start=1):
+        if direction == "long" and c.low <= entry:
+            fill_idx = i
+            break
+        if direction == "short" and c.high >= entry:
+            fill_idx = i
+            break
+    if fill_idx is None:
+        return None
+
+    # Phase 2: walk from the fill bar (inclusive) through max_hold.
+    bars = future[fill_idx - 1 : fill_idx - 1 + max_hold]
+    for j, c in enumerate(bars, start=1):
         if direction == "long":
             if c.low <= stop:
-                return c.ts, stop, "sl", i
+                return c.ts, stop, "sl", j
             if c.high >= tp1:
-                return c.ts, tp1, "tp1", i
+                return c.ts, tp1, "tp1", j
         else:
             if c.high >= stop:
-                return c.ts, stop, "sl", i
+                return c.ts, stop, "sl", j
             if c.low <= tp1:
-                return c.ts, tp1, "tp1", i
+                return c.ts, tp1, "tp1", j
     if bars:
         last = bars[-1]
         return last.ts, last.close, "timeout", len(bars)
-    # no future bars (live edge)
-    return future[-1].ts if future else 0, entry, "timeout", 0
+    return None
 
 
 # -------------------------------------------------------------------------
@@ -245,6 +272,7 @@ def run_backtest(
     rr_min: float = 2.0,
     out_dir: str | None = "reports/backtest",
     cooldown_bars: int = 3,
+    fill_window: int = 5,
 ) -> tuple[BacktestStats, list[BacktestTrade]]:
     """Replay the decision engine on historical D1 candles.
 
@@ -254,6 +282,10 @@ def run_backtest(
     confluence_min : minimum score /8 to trade.
     rr_min : minimum RR(TP1) required.
     cooldown_bars : bars to skip after exit (to avoid opening at the same bar).
+    fill_window : bars after signal within which the limit entry must be
+        touched by price; if never touched, the trade is dropped (not
+        recorded as filled). This prevents phantom fills on gap-away
+        moves where price never revisits the OTE entry.
     """
     candles, source = fetch_ohlc("1d")
     if len(candles) < 250:
@@ -279,10 +311,7 @@ def run_backtest(
             i += 1
             continue
         mvrv_val, _realized = mvrv_tuple
-        _regime, mvrv_dir = _mvrv_regime(
-            mvrv_val,
-            [m for m in mvrv_hist if m <= mvrv_val or True],
-        )
+        _regime, mvrv_dir = _mvrv_regime(mvrv_val, mvrv_hist)
 
         direction, _bias, poi, _trig, snap, score = _decide_backtest(window, mvrv_dir)
         if direction == "none" or snap is None:
@@ -299,13 +328,18 @@ def run_backtest(
             i += 1
             continue
 
-        # Simulate: assume filled at entry on the NEXT bar if price traded through entry
+        # Simulate fill-then-exit. Trade is only recorded if the market
+        # actually trades through the limit entry within `fill_window`
+        # bars (otherwise gap-away moves would produce phantom fills).
         future = candles[i + 1:]
-        close_ts, exit_price, reason, held = _walk_forward_exit(
-            direction, entry, stop, tp1, future, max_hold,
+        result = _walk_forward_exit(
+            direction, entry, stop, tp1, future, max_hold, fill_window,
         )
-        if held == 0:
-            break
+        if result is None:
+            # No fill within fill_window; walk forward one bar and retry.
+            i += 1
+            continue
+        close_ts, exit_price, reason, held = result
 
         if direction == "long":
             pnl_pct = (exit_price - entry) / entry * 100

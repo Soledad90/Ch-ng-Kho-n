@@ -17,6 +17,8 @@ def main() -> int:
                    help="Minimum RR(TP1) (default 2.0)")
     p.add_argument("--cooldown", type=int, default=3,
                    help="Bars to skip after exit (default 3)")
+    p.add_argument("--fill-window", type=int, default=5,
+                   help="Bars after signal to wait for limit entry fill (default 5)")
     p.add_argument("--no-save", action="store_true")
     args = p.parse_args()
 
@@ -25,6 +27,7 @@ def main() -> int:
         confluence_min=args.min_score,
         rr_min=args.rr,
         cooldown_bars=args.cooldown,
+        fill_window=args.fill_window,
         out_dir=None if args.no_save else "reports/backtest",
     )
     print(f"\n=== Backtest BTC/USDT D1 ===")
