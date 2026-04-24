@@ -34,6 +34,11 @@ class OpenPosition:
     open_ts: int                # unix seconds
     size_pct: float             # % of equity risked (for reporting)
     confluence_score: int
+    # Snapshot of equity at the bar where this position was opened. Used
+    # to compute a stable dollar P&L even when other positions close in
+    # the same tick and mutate state['equity'] before this one resolves.
+    # Optional for backward-compat with pre-fix state.json files.
+    equity_at_entry: float | None = None
 
 
 @dataclass
@@ -166,6 +171,9 @@ def tick(
     # ---- phase 1: check exits on open positions --------------------
     still_open: list[dict] = []
     for pdict in state["open_positions"]:
+        # Migration: older state.json files predate `equity_at_entry`.
+        # Use the current equity as a best-effort anchor for those.
+        pdict.setdefault("equity_at_entry", state["equity"])
         pos = OpenPosition(**pdict)
         try:
             candles, _ = fetch_ohlc(timeframe, pos.asset)  # type: ignore[arg-type]
@@ -178,9 +186,13 @@ def tick(
             continue
         close_ts, exit_price, reason = exit_info
         pnl_pct, r_mult = _pnl(pos, exit_price)
-        # risk-based P&L: moving `risk_pct` of equity for 1R of loss.
-        # Gain/loss on equity = (r_mult) * (risk_pct% of equity at entry).
-        equity_delta = state["equity"] * (pos.size_pct / 100.0) * r_mult
+        # risk-based P&L: anchor at the equity recorded when the position
+        # was opened (not the current, mutating equity). This keeps the
+        # dollar P&L stable when multiple positions close in the same
+        # tick — each position's result is based on the equity it was
+        # actually sized against.
+        anchor = pos.equity_at_entry if pos.equity_at_entry is not None else state["equity"]
+        equity_delta = anchor * (pos.size_pct / 100.0) * r_mult
         state["equity"] += equity_delta
         tr = ClosedTrade(
             asset=pos.asset, direction=pos.direction, entry=pos.entry,
@@ -216,6 +228,7 @@ def tick(
             entry=sig.entry, stop=sig.stop, tp1=sig.tp1, tp2=sig.tp2,
             open_ts=now_ts, size_pct=risk_pct,
             confluence_score=sig.confluence_score,
+            equity_at_entry=state["equity"],
         )
         state["open_positions"].append(asdict(pos))
         diff["opened"].append(asdict(pos))

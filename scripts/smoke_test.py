@@ -209,6 +209,42 @@ def test_paper_trader_exits() -> None:
     print("[OK] paper trader exits (SL/TP1 long+short)")
 
 
+def test_paper_trader_equity_anchor() -> None:
+    """Two positions closing in the same tick must both be P&L-anchored
+    at their opening equity, not the running (mutating) equity."""
+    import json
+    from pathlib import Path
+    from unittest.mock import patch
+    from agents import paper_trader as pt
+    from agents.data_sources import Candle
+
+    bars = [Candle(1700000000 + i * 60, 100, 110, 80, 95, 1) for i in range(30)]
+    state = {
+        "equity": 10_000.0, "starting_equity": 10_000.0, "last_tick_ts": 0,
+        "open_positions": [
+            # A: SL hit (-1R * 1% of 10000 = -100)
+            {"asset": "A", "direction": "long", "entry": 100, "stop": 99,
+             "tp1": 200, "tp2": None, "open_ts": 1700000000 - 3600,
+             "size_pct": 1.0, "confluence_score": 8, "equity_at_entry": 10_000.0},
+            # B: TP1 at 105, r=0.1 (+0.1R * 1% of 10000 = +10)
+            {"asset": "B", "direction": "long", "entry": 100, "stop": 50,
+             "tp1": 105, "tp2": None, "open_ts": 1700000000 - 3600,
+             "size_pct": 1.0, "confluence_score": 8, "equity_at_entry": 10_000.0},
+        ],
+        "closed_trades": [],
+    }
+    out = Path("/tmp/smoke_paper_anchor"); out.mkdir(exist_ok=True)
+    (out / "state.json").write_text(json.dumps(state))
+
+    with patch.object(pt, "fetch_ohlc", return_value=(bars, "test")):
+        diff = pt.tick(["A", "B"], out_dir=out, timeframe="15m")
+
+    # With the fix: A:-100, B:+10, final=9910
+    # Without the fix (buggy): A:-100, B:+9.9, final=9909.9
+    assert abs(diff["equity"] - 9910.0) < 1e-6, diff["equity"]
+    print("[OK] paper trader equity anchored at entry (multi-close tick)")
+
+
 def main() -> int:
     test_mvrv_agent_live()
     test_indicators_synthetic()
@@ -218,6 +254,7 @@ def main() -> int:
     test_futures_classify()
     test_liq_heatmap()
     test_paper_trader_exits()
+    test_paper_trader_equity_anchor()
     print("\nAll smoke tests passed.")
     return 0
 
