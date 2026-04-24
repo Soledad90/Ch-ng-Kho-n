@@ -177,13 +177,39 @@ def test_master_agent_pieces() -> None:
     print("[OK] master-agent helpers")
 
 
-def test_backtest_live() -> None:
-    from agents.backtest import run_backtest
-    stats, trades = run_backtest(
-        max_hold=10, confluence_min=6, rr_min=3.0,  # tight gate -> likely 0-few trades
-        out_dir=None, cooldown_bars=5,
-    )
-    # sanity: object types correct, no trade has inconsistent stats
+def test_backtest_offline() -> None:
+    """Exercise run_backtest on synthetic candles (no network).
+
+    Keeps the smoke suite's offline contract. We patch fetch_ohlc to
+    return 500 deterministic daily bars that cover dates present in
+    data/mvrv_btc.csv, so the MVRV date-lookup inside run_backtest
+    resolves without falling back to 'unknown'.
+    """
+    import math
+    from unittest.mock import patch
+    from agents import backtest as bt
+    from agents.data_sources import Candle
+
+    # 2022-01-01 UTC; 500 daily bars -> covers into 2023-05. These dates
+    # all exist in the committed MVRV CSV.
+    start_ts = 1_640_995_200
+    day = 86_400
+    bars: list[Candle] = []
+    for i in range(500):
+        # mild noisy uptrend + sinusoid so EMA/RSI/MACD aren't all zero
+        base = 40_000 + i * 50 + 2_000 * math.sin(i / 17.0)
+        h = base * 1.02
+        l = base * 0.98
+        o = base * 0.995
+        c = base * 1.003
+        bars.append(Candle(start_ts + i * day, o, h, l, c, 100.0))
+
+    with patch.object(bt, "fetch_ohlc", return_value=(bars, "synthetic")):
+        stats, trades = bt.run_backtest(
+            max_hold=10, confluence_min=6, rr_min=3.0,
+            out_dir=None, cooldown_bars=5,
+        )
+
     assert stats.n_trades == len(trades)
     for t in trades:
         assert t.r_multiple != 0
@@ -191,7 +217,7 @@ def test_backtest_live() -> None:
             assert t.stop < t.entry < t.tp1
         else:
             assert t.stop > t.entry > t.tp1
-    print(f"[OK] backtest engine (n={stats.n_trades}, win_rate={stats.win_rate}%)")
+    print(f"[OK] backtest engine (offline, n={stats.n_trades}, win_rate={stats.win_rate}%)")
 
 
 def main() -> int:
@@ -202,7 +228,7 @@ def main() -> int:
     test_fvg_ob_synthetic()
     test_futures_classify()
     test_liq_heatmap()
-    test_backtest_live()
+    test_backtest_offline()
     print("\nAll smoke tests passed.")
     return 0
 
