@@ -177,6 +177,234 @@ def test_master_agent_pieces() -> None:
     print("[OK] master-agent helpers")
 
 
+def test_coinglass_signals_synthetic() -> None:
+    """Pure helpers in agents.coinglass_signals — fully offline.
+
+    The webapp's confluence augmentation only uses these adapter
+    functions (not the HTTP client), so as long as their classification
+    logic is correct, the augmented decision is correct too.
+    """
+    from agents import coinglass_signals as cgs
+
+    # ---- funding_consensus -----------------------------------------------
+    assert cgs.funding_consensus(None)["regime"] == "unknown"
+    f = cgs.funding_consensus([
+        {"exchange": "Binance", "rate": 0.0004},  # extreme long
+        {"exchange": "OKX",     "rate": 0.0005},
+        {"exchange": "Bybit",   "rate": 0.0006},
+    ])
+    assert f["ok"] and f["regime"] == "extreme_long" and f["n_exchanges"] == 3
+    f2 = cgs.funding_consensus([
+        {"exchange": "Binance", "rate": -0.0005},
+        {"exchange": "OKX",     "rate": -0.0006},
+    ])
+    assert f2["regime"] == "extreme_short"
+
+    # ---- oi_trend --------------------------------------------------------
+    rows = [{"close": 100 + i} for i in range(20)]
+    t = cgs.oi_trend(rows, lookback=12)
+    assert t["ok"] and t["trend"] == "rising" and t["change_pct"] > 1.0
+    flat = cgs.oi_trend([{"close": 100} for _ in range(20)], lookback=12)
+    assert flat["trend"] == "flat"
+    assert cgs.oi_trend(None)["trend"] == "unknown"
+
+    # ---- liq_pressure ----------------------------------------------------
+    longs_flush = [{"long_liq_usd": 100, "short_liq_usd": 10} for _ in range(24)]
+    lp = cgs.liq_pressure(longs_flush)
+    assert lp["net_pressure"] == "longs_flushed"
+    shorts_squeeze = [{"long_liq_usd": 10, "short_liq_usd": 100} for _ in range(24)]
+    assert cgs.liq_pressure(shorts_squeeze)["net_pressure"] == "shorts_squeezed"
+    assert cgs.liq_pressure(None)["net_pressure"] == "unknown"
+
+    # ---- heatmap_clusters -----------------------------------------------
+    # y prices: 90, 95, 100, 105, 110. current_price = 100.
+    # Heaviest cell above is yIdx=4 (110); below is yIdx=0 (90).
+    hm = {
+        "y": [90, 95, 100, 105, 110],
+        "data": [
+            [0, 0, 50],   # below cluster
+            [1, 0, 30],
+            [0, 4, 80],   # above cluster (largest)
+            [1, 4, 70],
+            [0, 3, 5],    # tiny noise above 100 at 105
+        ],
+    }
+    h = cgs.heatmap_clusters(hm, current_price=100)
+    assert h["ok"]
+    assert h["magnet_up"]["price"] == 110
+    assert h["magnet_down"]["price"] == 90
+    # missing heatmap -> ok False
+    assert not cgs.heatmap_clusters(None, 100)["ok"]
+    # malformed cells silently skipped
+    bad = cgs.heatmap_clusters({"y": [10, 20], "data": [["x", "y", "z"]]}, 15)
+    assert not bad["ok"]
+
+    # ---- sentiment -------------------------------------------------------
+    assert cgs.sentiment([{"long_pct": 70, "short_pct": 30, "ratio": 2.3}])["skew"] == "crowd_long"
+    assert cgs.sentiment([{"long_pct": 30, "short_pct": 70, "ratio": 0.43}])["skew"] == "crowd_short"
+    assert cgs.sentiment([{"long_pct": 50, "short_pct": 50, "ratio": 1.0}])["skew"] == "balanced"
+    assert cgs.sentiment(None)["skew"] == "unknown"
+
+    # ---- coinglass_confluence (decision augmentation) -------------------
+    # Long trade + crowd-short funding + magnet up within 5% -> both PASS
+    funding = {"ok": True, "regime": "extreme_short"}
+    heatmap = {"ok": True, "magnet_up": {"price": 102.0, "distance_pct": 2.0,
+                                          "intensity": 1.0},
+               "magnet_down": None}
+    extra = cgs.coinglass_confluence("long", funding, lp, heatmap, sent={}, current_price=100)
+    assert [e["ok"] for e in extra] == [True, True], extra
+
+    # Long trade + crowd-LONG funding -> funding item FAILS
+    extra2 = cgs.coinglass_confluence(
+        "long", {"ok": True, "regime": "extreme_long"}, lp, heatmap,
+        sent={}, current_price=100,
+    )
+    assert extra2[0]["ok"] is False
+    # No direction -> both fail
+    extra3 = cgs.coinglass_confluence("none", funding, lp, heatmap, sent={}, current_price=100)
+    assert all(not e["ok"] for e in extra3)
+    print("[OK] coinglass_signals adapters (funding/oi/liq/heatmap/sentiment + confluence)")
+
+
+def test_coinglass_client_no_key() -> None:
+    """Without COINGLASS_API_KEY the client must short-circuit cleanly."""
+    import os
+    from agents.coinglass_client import CoinglassClient
+
+    saved = os.environ.pop("COINGLASS_API_KEY", None)
+    try:
+        c = CoinglassClient()
+        assert not c.configured
+        # Each public method should return None and set last_error.
+        assert c.funding_rate_exchange_list("BTC") is None
+        assert c.last_error and "not set" in c.last_error
+        assert c.liquidation_aggregated_history("BTC") is None
+        assert c.liquidation_aggregated_heatmap("BTC") is None
+        assert c.oi_weight_ohlc_history("BTC") is None
+        assert c.long_short_position_ratio("BTC") is None
+    finally:
+        if saved is not None:
+            os.environ["COINGLASS_API_KEY"] = saved
+    print("[OK] coinglass client gracefully degrades without API key")
+
+
+def test_webapp_gate_no_coinglass() -> None:
+    """When Coinglass data is missing the augmented gate must NOT
+    become stricter than the base master_agent gate.
+
+    Regression for: gate hard-coded at 8 with cg_passed=0 and only 12
+    base factors → effective threshold 8/12 (67%) vs base 7/12 (58%).
+    """
+    import os
+    import sys
+
+    saved = os.environ.pop("COINGLASS_API_KEY", None)
+
+    try:
+        class FakeSnap:
+            def __init__(self) -> None:
+                self.close = 70_000.0
+
+        class FakeSig:
+            def __init__(self) -> None:
+                self.direction = "long"
+                self.confluence_score = 7
+                self.decision = "TRADE"
+                self.rr = 2.5
+                self.hard_stops: list = []
+                self.m15 = FakeSnap()
+            def to_dict(self) -> dict:
+                return {
+                    "direction": self.direction,
+                    "decision": self.decision,
+                    "confluence_score": self.confluence_score,
+                    "rr": self.rr,
+                    "tp2": 78_000.0,
+                }
+
+        def fake_run(asset: str = "BTC"):
+            return FakeSig()
+
+        from agents import webapp
+        # Patch the master_agent reference imported into webapp's namespace
+        # AND force the Coinglass client to be unconfigured.
+        saved_run = webapp.master_agent.run
+        saved_key = webapp._client.api_key
+        webapp.master_agent.run = fake_run
+        webapp._client.api_key = None
+
+        out = webapp._decision("BTC")
+        assert "error" not in out, out
+        assert out["confluence_max"] == 12, out["confluence_max"]
+        assert out["confluence_gate"] == 7, out["confluence_gate"]
+        assert out["confluence_score_total"] == 7, out["confluence_score_total"]
+        # 7 base factors >= gate 7 → augmented decision must be TRADE,
+        # matching what master_agent would emit. Pre-fix: NO_TRADE.
+        assert out["decision_augmented"] == "TRADE", out["decision_augmented"]
+
+        # Per-source `errors` map (regression for: last_error overwritten
+        # by every call so frontend hid valid panels). All 4 calls fail
+        # identically without the key, so all 4 entries are populated.
+        errs = out["coinglass"]["errors"]
+        assert set(errs.keys()) == {"funding", "liq", "heatmap", "sentiment"}, errs
+        for src, msg in errs.items():
+            assert msg == "COINGLASS_API_KEY not set", (src, msg)
+
+        # confluence_extra items must carry per-factor `evaluable` flags
+        # so the frontend can render them independently (regression for:
+        # frontend AND-gated visibility while backend counted per-factor).
+        for ex in out["coinglass"]["confluence_extra"]:
+            assert ex["evaluable"] is False, ex
+            assert ex["source"] in ("funding", "heatmap"), ex
+    finally:
+        if saved is not None:
+            os.environ["COINGLASS_API_KEY"] = saved
+        try:
+            webapp.master_agent.run = saved_run  # type: ignore[name-defined]
+            webapp._client.api_key = saved_key   # type: ignore[name-defined]
+        except NameError:
+            pass
+    print("[OK] webapp gate falls back to 7/12 when Coinglass unavailable")
+
+
+def test_coinglass_extras_partial_evaluability() -> None:
+    """When only funding (or only heatmap) returns data, backend counts
+    that single factor in confluence_max and the corresponding extra
+    item must carry `evaluable=True` so the frontend renders one row,
+    not zero. Regression for: frontend `funding.ok && heatmap.ok` AND
+    gate hiding all extras when only one source succeeded.
+    """
+    from agents import coinglass_signals as cgs
+
+    funding_ok = {"ok": True, "regime": "extreme_short"}
+    heatmap_missing = {"ok": False, "magnet_up": None, "magnet_down": None}
+    extras = cgs.coinglass_confluence(
+        "long", funding_ok, {}, heatmap_missing, {}, current_price=100.0,
+    )
+    assert len(extras) == 2
+    funding_item = next(e for e in extras if e["source"] == "funding")
+    heatmap_item = next(e for e in extras if e["source"] == "heatmap")
+    assert funding_item["evaluable"] is True, funding_item
+    assert funding_item["ok"] is True, funding_item
+    assert heatmap_item["evaluable"] is False, heatmap_item
+
+    # Symmetric: only heatmap evaluable.
+    funding_missing = {"ok": False, "regime": "unknown"}
+    heatmap_ok = {"ok": True,
+                  "magnet_up": {"price": 102.0, "distance_pct": 2.0,
+                                "intensity": 1.0},
+                  "magnet_down": None}
+    extras2 = cgs.coinglass_confluence(
+        "long", funding_missing, {}, heatmap_ok, {}, current_price=100.0,
+    )
+    f2 = next(e for e in extras2 if e["source"] == "funding")
+    h2 = next(e for e in extras2 if e["source"] == "heatmap")
+    assert f2["evaluable"] is False, f2
+    assert h2["evaluable"] is True, h2
+    assert h2["ok"] is True, h2
+    print("[OK] coinglass extras carry per-factor evaluable flags")
+
+
 def main() -> int:
     test_mvrv_agent_live()
     test_indicators_synthetic()
@@ -185,6 +413,10 @@ def main() -> int:
     test_fvg_ob_synthetic()
     test_futures_classify()
     test_liq_heatmap()
+    test_coinglass_signals_synthetic()
+    test_coinglass_client_no_key()
+    test_webapp_gate_no_coinglass()
+    test_coinglass_extras_partial_evaluability()
     print("\nAll smoke tests passed.")
     return 0
 
