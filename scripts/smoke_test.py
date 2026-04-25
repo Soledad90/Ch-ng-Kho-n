@@ -288,6 +288,70 @@ def test_coinglass_client_no_key() -> None:
     print("[OK] coinglass client gracefully degrades without API key")
 
 
+def test_webapp_gate_no_coinglass() -> None:
+    """When Coinglass data is missing the augmented gate must NOT
+    become stricter than the base master_agent gate.
+
+    Regression for: gate hard-coded at 8 with cg_passed=0 and only 12
+    base factors → effective threshold 8/12 (67%) vs base 7/12 (58%).
+    """
+    import os
+    import sys
+
+    saved = os.environ.pop("COINGLASS_API_KEY", None)
+
+    try:
+        class FakeSnap:
+            def __init__(self) -> None:
+                self.close = 70_000.0
+
+        class FakeSig:
+            def __init__(self) -> None:
+                self.direction = "long"
+                self.confluence_score = 7
+                self.decision = "TRADE"
+                self.rr = 2.5
+                self.hard_stops: list = []
+                self.m15 = FakeSnap()
+            def to_dict(self) -> dict:
+                return {
+                    "direction": self.direction,
+                    "decision": self.decision,
+                    "confluence_score": self.confluence_score,
+                    "rr": self.rr,
+                    "tp2": 78_000.0,
+                }
+
+        def fake_run(asset: str = "BTC"):
+            return FakeSig()
+
+        from agents import webapp
+        # Patch the master_agent reference imported into webapp's namespace
+        # AND force the Coinglass client to be unconfigured.
+        saved_run = webapp.master_agent.run
+        saved_key = webapp._client.api_key
+        webapp.master_agent.run = fake_run
+        webapp._client.api_key = None
+
+        out = webapp._decision("BTC")
+        assert "error" not in out, out
+        assert out["confluence_max"] == 12, out["confluence_max"]
+        assert out["confluence_gate"] == 7, out["confluence_gate"]
+        assert out["confluence_score_total"] == 7, out["confluence_score_total"]
+        # 7 base factors >= gate 7 → augmented decision must be TRADE,
+        # matching what master_agent would emit. Pre-fix: NO_TRADE.
+        assert out["decision_augmented"] == "TRADE", out["decision_augmented"]
+    finally:
+        if saved is not None:
+            os.environ["COINGLASS_API_KEY"] = saved
+        try:
+            webapp.master_agent.run = saved_run  # type: ignore[name-defined]
+            webapp._client.api_key = saved_key   # type: ignore[name-defined]
+        except NameError:
+            pass
+    print("[OK] webapp gate falls back to 7/12 when Coinglass unavailable")
+
+
 def main() -> int:
     test_mvrv_agent_live()
     test_indicators_synthetic()
@@ -298,6 +362,7 @@ def main() -> int:
     test_liq_heatmap()
     test_coinglass_signals_synthetic()
     test_coinglass_client_no_key()
+    test_webapp_gate_no_coinglass()
     print("\nAll smoke tests passed.")
     return 0
 

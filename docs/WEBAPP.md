@@ -29,9 +29,9 @@ you trust your network. Coinglass calls always go out to
 ## What you see
 
 - **Price & Zones**: candle chart (TradingView Lightweight Charts CDN).
-- **Decision**: bias HTF, MVRV regime, entry/SL/TP1/TP2/RR, augmented confluence score `x/14`, and the final TRADE / NO_TRADE call.
+- **Decision**: bias HTF, MVRV regime, entry/SL/TP1/TP2/RR, augmented confluence score `x/N` (where N is 12, 13, or 14 depending on how many Coinglass factors are evaluable), and the final TRADE / NO_TRADE call.
 - **Coinglass Microstructure**: median funding across exchanges, 24h liquidation pressure, nearest heatmap magnets up/down, top-trader long/short skew. Shows a friendly "API key not set" banner when `COINGLASS_API_KEY` is missing.
-- **Confluence Matrix**: all 12 base factors from the Master Data Agent + 2 extra Coinglass factors, with per-row pass/fail and reason.
+- **Confluence Matrix**: all 12 base factors from the Master Data Agent, plus 0–2 extra Coinglass factors (only shown when their underlying signals are evaluable). Per-row pass/fail and reason.
 
 ## Decision logic
 
@@ -46,8 +46,10 @@ with two Coinglass-derived factors:
    cluster in the trade direction sits within 5% of current price
    (gives a high-conviction TP1 anchor).
 
-The augmented gate is **8/14 (~57%)**, proportionally equivalent to
-the base 7/12 (~58%).
+The augmented gate is **dynamic**:
+
+- Both Coinglass factors evaluable → **8/14 (~57%)**, proportionally equivalent to the base 7/12 (~58%).
+- One or zero Coinglass factors evaluable (key missing, network error, no data) → falls back to **7/(12 + n)**, never stricter than the base master_agent gate.
 
 If the Coinglass heatmap reveals a magnet that sits *further* than the
 existing TP2 (computed from premium/discount swing), the webapp
@@ -71,9 +73,11 @@ hammering Kraken/Coinglass when the page is left open.
 
 ## Graceful degradation
 
-- **No API key** → Coinglass panels show "API key not set", confluence
-  drops to base 12 factors, decision unaffected for the remaining
-  factors.
+- **No API key** → Coinglass panels show "API key not set". The
+  confluence matrix drops to the base 12 factors and the gate falls
+  back to 7/12 — so the webapp emits identical TRADE/NO_TRADE verdicts
+  to a plain `master_agent.run()`. The augmented decision is **never**
+  stricter than the base when Coinglass data is unavailable.
 - **Network error / Coinglass down** → `last_error` from the client is
   surfaced in the UI; cached previous values continue to serve until
   TTL expires.

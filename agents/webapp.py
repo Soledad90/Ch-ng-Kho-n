@@ -113,12 +113,18 @@ def _decision(asset: str = "BTC") -> dict:
         sig.direction, funding, liq, heatmap, sent, current_price,
     )
 
-    # Augmented score: existing 12 factors + 2 Coinglass factors. Gate
-    # raises proportionally from 7/12 (~58%) to 8/14 (~57%).
+    # Augmented score: existing 12 factors + N Coinglass factors actually
+    # evaluable (i.e. we received data for them). Gate is bumped by +1 only
+    # when BOTH Coinglass items are evaluable (8/14 ≈ 57%); otherwise it
+    # falls back to the base 7/X so we never become STRICTER than
+    # master_agent when Coinglass data is missing.
     cg_passed = sum(1 for it in extra if it["ok"])
+    cg_evaluable = int(funding.get("ok", False)) + int(heatmap.get("ok", False))
+    total_max = 12 + cg_evaluable
+    gate = 8 if cg_evaluable == 2 else 7
     new_score = sig.confluence_score + cg_passed
     new_decision = "TRADE" if (
-        new_score >= 8
+        new_score >= gate
         and sig.direction != "none"
         and sig.rr is not None
         and sig.rr >= 2.0
@@ -137,7 +143,8 @@ def _decision(asset: str = "BTC") -> dict:
             tp2 = mag["price"]
 
     sig_d["confluence_score_total"] = new_score
-    sig_d["confluence_max"] = 14
+    sig_d["confluence_max"] = total_max
+    sig_d["confluence_gate"] = gate
     sig_d["decision_augmented"] = new_decision
     sig_d["tp2_augmented"] = tp2
     sig_d["coinglass"] = {
@@ -337,8 +344,16 @@ function renderCoinglass(cg) {
 function renderConfluence(s) {
   const tbody = $('confluence').querySelector('tbody');
   if (s.error) { tbody.innerHTML = ''; return; }
-  const all = (s.confluence||[]).map(c => ({name:c.name, ok:c.passed, reason:c.reason}));
-  const extra = (s.coinglass && s.coinglass.confluence_extra) || [];
+  // Base ConfluenceItem fields are {name, passed, note}; Coinglass extras
+  // use {name, ok, reason}. Normalise to a common shape.
+  const all = (s.confluence||[]).map(c => ({name:c.name, ok:c.passed, reason:c.note}));
+  // Only show Coinglass rows when they are actually evaluable so the row
+  // count matches confluence_max. When Coinglass is unavailable the
+  // banner in the Coinglass card explains the absence.
+  const cgEvaluable = s.coinglass
+    && s.coinglass.funding && s.coinglass.funding.ok
+    && s.coinglass.heatmap && s.coinglass.heatmap.ok;
+  const extra = cgEvaluable ? (s.coinglass.confluence_extra || []) : [];
   const rows = [...all, ...extra];
   tbody.innerHTML = rows.map((c,i) =>
     `<tr><td>${i+1}</td><td>${c.name}</td>
