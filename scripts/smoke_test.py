@@ -341,6 +341,21 @@ def test_webapp_gate_no_coinglass() -> None:
         # 7 base factors >= gate 7 → augmented decision must be TRADE,
         # matching what master_agent would emit. Pre-fix: NO_TRADE.
         assert out["decision_augmented"] == "TRADE", out["decision_augmented"]
+
+        # Per-source `errors` map (regression for: last_error overwritten
+        # by every call so frontend hid valid panels). All 4 calls fail
+        # identically without the key, so all 4 entries are populated.
+        errs = out["coinglass"]["errors"]
+        assert set(errs.keys()) == {"funding", "liq", "heatmap", "sentiment"}, errs
+        for src, msg in errs.items():
+            assert msg == "COINGLASS_API_KEY not set", (src, msg)
+
+        # confluence_extra items must carry per-factor `evaluable` flags
+        # so the frontend can render them independently (regression for:
+        # frontend AND-gated visibility while backend counted per-factor).
+        for ex in out["coinglass"]["confluence_extra"]:
+            assert ex["evaluable"] is False, ex
+            assert ex["source"] in ("funding", "heatmap"), ex
     finally:
         if saved is not None:
             os.environ["COINGLASS_API_KEY"] = saved
@@ -350,6 +365,44 @@ def test_webapp_gate_no_coinglass() -> None:
         except NameError:
             pass
     print("[OK] webapp gate falls back to 7/12 when Coinglass unavailable")
+
+
+def test_coinglass_extras_partial_evaluability() -> None:
+    """When only funding (or only heatmap) returns data, backend counts
+    that single factor in confluence_max and the corresponding extra
+    item must carry `evaluable=True` so the frontend renders one row,
+    not zero. Regression for: frontend `funding.ok && heatmap.ok` AND
+    gate hiding all extras when only one source succeeded.
+    """
+    from agents import coinglass_signals as cgs
+
+    funding_ok = {"ok": True, "regime": "extreme_short"}
+    heatmap_missing = {"ok": False, "magnet_up": None, "magnet_down": None}
+    extras = cgs.coinglass_confluence(
+        "long", funding_ok, {}, heatmap_missing, {}, current_price=100.0,
+    )
+    assert len(extras) == 2
+    funding_item = next(e for e in extras if e["source"] == "funding")
+    heatmap_item = next(e for e in extras if e["source"] == "heatmap")
+    assert funding_item["evaluable"] is True, funding_item
+    assert funding_item["ok"] is True, funding_item
+    assert heatmap_item["evaluable"] is False, heatmap_item
+
+    # Symmetric: only heatmap evaluable.
+    funding_missing = {"ok": False, "regime": "unknown"}
+    heatmap_ok = {"ok": True,
+                  "magnet_up": {"price": 102.0, "distance_pct": 2.0,
+                                "intensity": 1.0},
+                  "magnet_down": None}
+    extras2 = cgs.coinglass_confluence(
+        "long", funding_missing, {}, heatmap_ok, {}, current_price=100.0,
+    )
+    f2 = next(e for e in extras2 if e["source"] == "funding")
+    h2 = next(e for e in extras2 if e["source"] == "heatmap")
+    assert f2["evaluable"] is False, f2
+    assert h2["evaluable"] is True, h2
+    assert h2["ok"] is True, h2
+    print("[OK] coinglass extras carry per-factor evaluable flags")
 
 
 def main() -> int:
@@ -363,6 +416,7 @@ def main() -> int:
     test_coinglass_signals_synthetic()
     test_coinglass_client_no_key()
     test_webapp_gate_no_coinglass()
+    test_coinglass_extras_partial_evaluability()
     print("\nAll smoke tests passed.")
     return 0
 

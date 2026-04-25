@@ -99,10 +99,20 @@ def _decision(asset: str = "BTC") -> dict:
         return {"error": "no current price (m15 unavailable)"}
 
     # ---- Coinglass overlay -----------------------------------------------
+    # `_client.last_error` is overwritten by every call, so we snapshot it
+    # immediately after each call and expose a per-source `errors` map.
+    # Without this, only the last call's error reaches the UI and the
+    # frontend can't tell which subset of panels actually failed.
+    errors: dict[str, str | None] = {}
+
     raw_funding = _client.funding_rate_exchange_list(asset)
+    errors["funding"] = _client.last_error if raw_funding is None else None
     raw_liq = _client.liquidation_aggregated_history(asset, "1h", 100)
+    errors["liq"] = _client.last_error if raw_liq is None else None
     raw_heatmap = _client.liquidation_aggregated_heatmap(asset, "3d")
+    errors["heatmap"] = _client.last_error if raw_heatmap is None else None
     raw_sent = _client.long_short_position_ratio(asset, "1h", 100)
+    errors["sentiment"] = _client.last_error if raw_sent is None else None
 
     funding = cgs.funding_consensus(raw_funding)
     liq = cgs.liq_pressure(raw_liq, lookback=24)
@@ -149,7 +159,11 @@ def _decision(asset: str = "BTC") -> dict:
     sig_d["tp2_augmented"] = tp2
     sig_d["coinglass"] = {
         "configured": _client.configured,
+        # Kept for backwards compat with anyone scraping the JSON; new code
+        # should use `errors` (per-source) instead. When the key is missing
+        # all 4 calls will have set this to the same string.
         "last_error": _client.last_error,
+        "errors": errors,
         "funding": funding,
         "liq_pressure": liq,
         "heatmap": heatmap,
@@ -322,21 +336,33 @@ function renderCoinglass(cg) {
     $('coinglass').innerHTML = '<div class="warn">COINGLASS_API_KEY not set — set it and restart to enable heatmap, multi-exchange funding, OI, and sentiment panels.</div>';
     return;
   }
-  if (cg.last_error) {
-    $('coinglass').innerHTML = `<div class="err">Coinglass error: ${cg.last_error}</div>`;
-    return;
-  }
+  // Render per-source rows independently. Previously the whole panel was
+  // hidden when `cg.last_error` was truthy — but `last_error` only reflects
+  // the last of 4 sequential calls, so a transient sentiment failure was
+  // wiping out valid funding+liq+heatmap data. Use `cg.errors` (per source)
+  // for the inline status instead.
+  const errs = cg.errors || {};
   const f = cg.funding || {}, liq = cg.liq_pressure || {}, hm = cg.heatmap || {}, sent = cg.sentiment || {};
   const upMag = hm.magnet_up, dnMag = hm.magnet_down;
+  const cell = (ok, err, body) =>
+    ok ? body : (err ? `<span class="err">err: ${err}</span>` : '<span class="meta">no data</span>');
   $('coinglass').innerHTML = `
     <table>
       <tr><th>Funding (median, ${f.n_exchanges||0} ex)</th>
-          <td>${fmt(f.median_pct,4)}% <span class="meta">${f.regime||'—'}</span></td></tr>
+          <td>${cell(f.ok, errs.funding,
+              `${fmt(f.median_pct,4)}% <span class="meta">${f.regime||'—'}</span>`)}</td></tr>
       <tr><th>Liq pressure (24h)</th>
-          <td>longs ${fmt(liq.long_liq_usd,0)} / shorts ${fmt(liq.short_liq_usd,0)} <span class="meta">${liq.net_pressure||'—'}</span></td></tr>
-      <tr><th>Magnet up</th><td>${upMag ? fmt(upMag.price,2)+' (+'+fmt(upMag.distance_pct,2)+'%)' : '—'}</td></tr>
-      <tr><th>Magnet down</th><td>${dnMag ? fmt(dnMag.price,2)+' ('+fmt(dnMag.distance_pct,2)+'%)' : '—'}</td></tr>
-      <tr><th>Top trader L/S</th><td>${fmt(sent.long_pct,1)}% / ${fmt(sent.short_pct,1)}% <span class="meta">${sent.skew||'—'}</span></td></tr>
+          <td>${cell(liq.ok, errs.liq,
+              `longs ${fmt(liq.long_liq_usd,0)} / shorts ${fmt(liq.short_liq_usd,0)} <span class="meta">${liq.net_pressure||'—'}</span>`)}</td></tr>
+      <tr><th>Magnet up</th>
+          <td>${cell(hm.ok, errs.heatmap,
+              upMag ? fmt(upMag.price,2)+' (+'+fmt(upMag.distance_pct,2)+'%)' : '<span class="meta">none above price</span>')}</td></tr>
+      <tr><th>Magnet down</th>
+          <td>${cell(hm.ok, errs.heatmap,
+              dnMag ? fmt(dnMag.price,2)+' ('+fmt(dnMag.distance_pct,2)+'%)' : '<span class="meta">none below price</span>')}</td></tr>
+      <tr><th>Top trader L/S</th>
+          <td>${cell(sent.ok, errs.sentiment,
+              `${fmt(sent.long_pct,1)}% / ${fmt(sent.short_pct,1)}% <span class="meta">${sent.skew||'—'}</span>`)}</td></tr>
     </table>
   `;
 }
@@ -345,15 +371,14 @@ function renderConfluence(s) {
   const tbody = $('confluence').querySelector('tbody');
   if (s.error) { tbody.innerHTML = ''; return; }
   // Base ConfluenceItem fields are {name, passed, note}; Coinglass extras
-  // use {name, ok, reason}. Normalise to a common shape.
+  // use {name, ok, reason, evaluable}. Normalise to a common shape and
+  // filter Coinglass rows per-factor (NOT a single AND gate) so the
+  // visible row count matches confluence_max. When only one of
+  // funding/heatmap is evaluable the backend includes 1 in confluence_max
+  // and we must show that 1 row, not zero.
   const all = (s.confluence||[]).map(c => ({name:c.name, ok:c.passed, reason:c.note}));
-  // Only show Coinglass rows when they are actually evaluable so the row
-  // count matches confluence_max. When Coinglass is unavailable the
-  // banner in the Coinglass card explains the absence.
-  const cgEvaluable = s.coinglass
-    && s.coinglass.funding && s.coinglass.funding.ok
-    && s.coinglass.heatmap && s.coinglass.heatmap.ok;
-  const extra = cgEvaluable ? (s.coinglass.confluence_extra || []) : [];
+  const extra = ((s.coinglass && s.coinglass.confluence_extra) || [])
+    .filter(c => c && c.evaluable);
   const rows = [...all, ...extra];
   tbody.innerHTML = rows.map((c,i) =>
     `<tr><td>${i+1}</td><td>${c.name}</td>

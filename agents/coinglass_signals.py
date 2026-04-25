@@ -252,6 +252,13 @@ def coinglass_confluence(
         "name": "Funding consensus (multi-exchange)",
         "ok": fund_ok,
         "reason": fund_reason,
+        # `evaluable` lets the UI render the row even when ok=False as long
+        # as the underlying data source returned data. Without this, an
+        # evaluable-but-failed factor (e.g. funding=neutral, doesn't favour
+        # our direction) would silently disappear and the score header
+        # `x/13` would not match the visible row count.
+        "evaluable": bool(funding.get("ok", False)),
+        "source": "funding",
     })
 
     # B. Heatmap magnet in our favour within 5%
@@ -276,6 +283,8 @@ def coinglass_confluence(
         "name": "Liquidation magnet within 5%",
         "ok": hm_ok,
         "reason": hm_reason,
+        "evaluable": bool(heatmap.get("ok", False)),
+        "source": "heatmap",
     })
 
     return items

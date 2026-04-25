@@ -78,9 +78,19 @@ hammering Kraken/Coinglass when the page is left open.
   back to 7/12 — so the webapp emits identical TRADE/NO_TRADE verdicts
   to a plain `master_agent.run()`. The augmented decision is **never**
   stricter than the base when Coinglass data is unavailable.
-- **Network error / Coinglass down** → `last_error` from the client is
-  surfaced in the UI; cached previous values continue to serve until
-  TTL expires.
+- **Network error / Coinglass down** → the response carries a per-source
+  `coinglass.errors = {funding, liq, heatmap, sentiment}` map. The UI
+  renders each row independently — a transient sentiment failure no
+  longer hides valid funding/liquidation/heatmap data. The legacy
+  top-level `coinglass.last_error` is kept for backwards compatibility
+  but is **not** used as a panel-blocking gate. Cached previous values
+  continue to serve until TTL expires.
+- **Partial Coinglass** (e.g. funding ok, heatmap fails) → backend
+  counts the single ok factor: `confluence_max = 13`, score includes
+  the funding factor if it passed. Frontend renders Coinglass rows
+  per-factor (each `confluence_extra` item carries an `evaluable`
+  flag tied to its underlying source) so the visible row count
+  matches `confluence_max`.
 - **`limit=0` on candles** → returns `[]` (Python's `[-0:]` quirk
   that would otherwise return all candles is guarded explicitly).
 - **Unknown asset** → if the underlying `master_agent.run()` does not
